@@ -7,6 +7,7 @@ import {
     MidgardActionsResponse,
     MidgardPoolResponse,
     MidgardAction,
+    MidgardCoin,
 } from '../interfaces/thorchain.interface';
 import { THORCHAIN_CONSTANTS } from '../../../common/constants/thorchain.constants';
 
@@ -25,17 +26,18 @@ export class MidgardService {
     }
 
     /**
-     * Fetch recent actions from Midgard
+     * Fetch recent actions from Midgard filtered by asset
      */
     async getRecentActions(limit: number = 10): Promise<MidgardAction[]> {
         try {
-            this.logger.debug(`Fetching ${limit} recent actions`);
+            this.logger.debug(`Fetching ${limit} recent RUJI actions`);
 
             const response$ = this.httpService
                 .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
                     params: {
                         limit: limit.toString(),
                         type: 'swap', // Only get swap actions
+                        asset: THORCHAIN_CONSTANTS.RUJI_TOKEN, // Filter by RUJI at API level
                     },
                 })
                 .pipe(
@@ -126,49 +128,65 @@ export class MidgardService {
     }
 
     /**
-     * Check if an action involves RUJI token
-     */
-    involvesRuji(action: MidgardAction): boolean {
-        const rujiToken = THORCHAIN_CONSTANTS.RUJI_TOKEN;
-
-        // Check input transactions for RUJI coins
-        const hasRujiInput = action.in?.some(tx =>
-            tx.coins?.some(coin => coin.asset === rujiToken)
-        ) ?? false;
-
-        // Check output transactions for RUJI coins
-        const hasRujiOutput = action.out?.some(tx =>
-            tx.coins?.some(coin => coin.asset === rujiToken)
-        ) ?? false;
-
-        // Check pools involved (pool names use dot notation like THOR.RUJI)
-        const hasRujiPool = action.pools?.some((pool) => pool.includes('RUJI')) ?? false;
-
-        return hasRujiInput || hasRujiOutput || hasRujiPool;
-    }
-
-    /**
      * Extract swap direction from action
+     * Uses pools array as fallback for pending/fresh stream swaps with empty out array
      */
     getSwapDirection(action: MidgardAction): {
         from: string;
         to: string;
     } | null {
-        if (!action.in || !action.out || action.in.length === 0 || action.out.length === 0) {
-            return null;
+        // Try to get direction from in/out coins first
+        if (action.in && action.in.length > 0 && action.out && action.out.length > 0) {
+            const inCoin = action.in[0]?.coins?.[0];
+
+            // Find the first out entry with coins (skip empty/affiliate-only entries)
+            let outCoin: MidgardCoin | undefined = undefined;
+            for (const outTx of action.out) {
+                if (outTx.coins && outTx.coins.length > 0) {
+                    // Skip if this is just an affiliate fee (same asset as input)
+                    const coin = outTx.coins[0];
+                    if (coin && coin.asset !== inCoin?.asset) {
+                        outCoin = coin;
+                        break;
+                    }
+                }
+            }
+
+            if (inCoin && outCoin) {
+                return {
+                    from: inCoin.asset,
+                    to: outCoin.asset,
+                };
+            }
         }
 
-        const inCoin = action.in[0]?.coins?.[0];
-        const outCoin = action.out[0]?.coins?.[0];
-
-        if (!inCoin || !outCoin) {
-            return null;
+        // Fallback: Use pools array (pools[0]=input, pools[1]=output)
+        // This works for pending stream swaps where out array might be empty
+        if (action.pools && action.pools.length >= 2) {
+            this.logger.debug(`Using pools array for direction: ${action.pools[0]} -> ${action.pools[1]}`);
+            return {
+                from: action.pools[0],
+                to: action.pools[1],
+            };
         }
 
-        return {
-            from: inCoin.asset,
-            to: outCoin.asset,
-        };
+        // Last resort: Check if we can infer from metadata
+        if (action.metadata?.swap?.streamingSwapMeta) {
+            const meta = action.metadata.swap.streamingSwapMeta;
+            if (meta.inCoin?.asset && meta.outCoin?.asset) {
+                this.logger.debug(`Using streamingSwapMeta for direction: ${meta.inCoin.asset} -> ${meta.outCoin.asset}`);
+                return {
+                    from: meta.inCoin.asset,
+                    to: meta.outCoin.asset,
+                };
+            }
+        }
+
+        this.logger.warn(`Could not determine swap direction from any source. ` +
+            `Pools: ${action.pools?.length || 0}, ` +
+            `In: ${action.in?.length || 0}, ` +
+            `Out: ${action.out?.length || 0}`);
+        return null;
     }
 }
 

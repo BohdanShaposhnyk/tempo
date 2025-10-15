@@ -1,0 +1,5 @@
+export const TRADE_CONFIG_CONSTANTS = {
+    MIN_OPPORTUNITY_SIZE_$: 10000,
+    MIN_OPPORTUNITY_DURATION_S: 100,
+    BET_SIZE_$: 5,
+} as const;

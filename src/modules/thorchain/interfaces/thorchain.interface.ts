@@ -1,43 +1,4 @@
 /**
- * THORChain WebSocket Event Types
- */
-export interface ThorchainEvent {
-    type: string;
-    value: any;
-}
-
-export interface NewBlockEvent {
-    type: 'NewBlock';
-    value: {
-        block: {
-            header: {
-                height: string;
-                time: string;
-            };
-        };
-    };
-}
-
-export interface TxEvent {
-    type: 'Tx';
-    value: {
-        TxResult: {
-            height: string;
-            tx: string; // base64 encoded
-            result: {
-                events: Array<{
-                    type: string;
-                    attributes: Array<{
-                        key: string;
-                        value: string;
-                    }>;
-                }>;
-            };
-        };
-    };
-}
-
-/**
  * Midgard API Response Types
  * Based on actual API response from https://midgard.ninerealms.com/v2/doc#operation/GetActions
  */
@@ -126,10 +87,10 @@ export interface MidgardPoolResponse {
 export interface StreamSwapOpportunity {
     txHash: string;
     timestamp: Date;
-    direction: string; // e.g., "RUJI->BTC" or "BTC->RUJI"
     inputAsset: string;
     outputAsset: string;
     inputAmount: string;
+    outputAmount: string;
     streamingConfig: {
         count: number;
         quantity: number;
@@ -138,15 +99,20 @@ export interface StreamSwapOpportunity {
     estimatedDurationSeconds: number;
     pools: string[];
     height: string;
+    $size: number;
+    tradeDirection: TradeDirection;
 }
 
 /**
  * Configuration Types
  */
 export interface ThorchainConfig {
-    thornodeWebsocketUrl: string;
     midgardApiUrl: string;
     rujiToken: string;
     runeToken: string;
 }
 
+export enum TradeDirection {
+    short = "short",
+    long = "long",
+}

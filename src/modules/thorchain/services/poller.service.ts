@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MidgardService } from './midgard.service';
-import { TransactionDetectedEvent } from '../events/thorchain.events';
 
 /**
  * Alternative to WebSocket: Poll Midgard API for new actions
@@ -16,7 +15,9 @@ import { TransactionDetectedEvent } from '../events/thorchain.events';
 export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly logger = new Logger(PollerService.name);
     private pollingInterval: NodeJS.Timeout | null = null;
-    private lastProcessedHeight: number = 0;
+    private processedTxIds: Set<string> = new Set();
+    private readonly maxProcessedTxIds = 1000; // Keep last 1000 txIDs to prevent memory bloat
+    private lastProcessedHeight: number = 0; // Still track for health monitoring
     private isRunning = false;
     private readonly pollIntervalMs = 6000; // Poll every 6 seconds (THORChain block time is ~6s)
 
@@ -63,10 +64,10 @@ export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
 
     private async poll(): Promise<void> {
         try {
-            // Get recent actions from Midgard
-            // Fetch enough to cover multiple blocks with high activity
-            // At ~10 actions/block and 6s polling, 50 actions should be safe
-            const actions = await this.midgardService.getRecentActions(50);
+            // Get recent RUJI actions from Midgard
+            // Since we're filtering by asset at API level, we need fewer results
+            // 20 RUJI actions should cover extended periods reliably
+            const actions = await this.midgardService.getRecentActions(20);
 
             if (!actions || actions.length === 0) {
                 return;
@@ -79,39 +80,55 @@ export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
                 return heightA - heightB;
             });
 
-            let maxHeightProcessed = this.lastProcessedHeight;
+            let maxHeightSeen = this.lastProcessedHeight;
 
             for (const action of sortedActions) {
                 const height = parseInt(action.height);
+                const txId = action.in?.[0]?.txID;
 
-                // Skip if we've already processed this height
-                if (height <= this.lastProcessedHeight) {
+                // Skip if no txID (shouldn't happen but be safe)
+                if (!txId) {
+                    this.logger.warn(`Action at height ${height} has no txID, skipping`);
                     continue;
                 }
 
-                // Check if this action involves RUJI
-                if (this.midgardService.involvesRuji(action)) {
-                    this.logger.debug(`Found RUJI action at height ${height}`);
-
-                    // Emit transaction detected event
-                    // We'll pass the action data directly since we already have it
-                    this.eventEmitter.emit(
-                        'action.detected',
-                        {
-                            action,
-                            height: action.height,
-                        },
-                    );
+                // Skip if we've already processed this transaction
+                if (this.processedTxIds.has(txId)) {
+                    // this.logger.debug(`Already processed txID ${txId}, skipping`);
+                    continue;
                 }
 
-                // Track the maximum height we've seen
-                if (height > maxHeightProcessed) {
-                    maxHeightProcessed = height;
+                // All actions returned are already RUJI-related (filtered by API)
+                this.logger.debug(`Found RUJI action at height ${height}, txID: ${txId}`);
+
+                // Emit action detected event
+                this.eventEmitter.emit(
+                    'action.detected',
+                    {
+                        action,
+                        height: action.height,
+                    },
+                );
+
+                // Mark this transaction as processed
+                this.processedTxIds.add(txId);
+
+                // Track the maximum height we've seen (for health monitoring)
+                if (height > maxHeightSeen) {
+                    maxHeightSeen = height;
                 }
             }
 
-            // Update last processed height after all actions are processed
-            this.lastProcessedHeight = maxHeightProcessed;
+            // Update last processed height for health monitoring
+            this.lastProcessedHeight = maxHeightSeen;
+
+            // Prevent memory bloat: keep only the most recent txIDs
+            if (this.processedTxIds.size > this.maxProcessedTxIds) {
+                const txIdsArray = Array.from(this.processedTxIds);
+                const toKeep = txIdsArray.slice(-this.maxProcessedTxIds);
+                this.processedTxIds = new Set(toKeep);
+                this.logger.debug(`Trimmed processedTxIds to ${this.maxProcessedTxIds} entries`);
+            }
         } catch (error) {
             this.logger.error(`Error polling Midgard: ${error.message}`);
         }
