@@ -6,7 +6,7 @@ import { TRADE_CONFIG_CONSTANTS } from 'src/common/constants/tradeConfig.constan
 import { StreamSwapDetectedEvent, ValidOpportunityDetectedEvent } from '../events/thorchain.events';
 import { MidgardAction, StreamSwapOpportunity, TradeDirection } from '../interfaces/thorchain.interface';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { formatAmount } from 'src/common/utils/format.utils';
+import { formatAmount, getStreamSwapSizeInUSD } from 'src/common/utils/format.utils';
 
 @Injectable()
 export class DetectorService implements OnApplicationBootstrap {
@@ -76,15 +76,15 @@ export class DetectorService implements OnApplicationBootstrap {
             // interval is in blocks, THORChain blocks are ~6 seconds
             const estimatedDurationSeconds = count * interval * 6;
             const tradeDirection = direction.from === THORCHAIN_CONSTANTS.RUJI_TOKEN ? TradeDirection.long : TradeDirection.short;
-            const $size = parseFloat(streamingMeta.outEstimation ?? "0") * parseFloat(action?.metadata?.swap?.outPriceUSD ?? "0");
+            const $size = getStreamSwapSizeInUSD(action);
 
             const opportunity: StreamSwapOpportunity = {
                 txHash,
                 timestamp: new Date(parseInt(action.date) / 1000000), // Convert from nanoseconds to milliseconds
                 inputAsset: direction.from,
                 outputAsset: direction.to,
-                inputAmount: action.in[0]?.coins[0]?.amount || '0',
-                outputAmount: streamingMeta.outEstimation || '0',
+                inputAmount: action.in[0]?.coins[0]?.amount ?? '0',
+                outputAmount: streamingMeta.outEstimation ?? '0',
                 $size,
                 tradeDirection,
                 streamingConfig: {
@@ -93,7 +93,7 @@ export class DetectorService implements OnApplicationBootstrap {
                     interval,
                 },
                 estimatedDurationSeconds,
-                pools: action.pools || [],
+                pools: action.pools ?? [],
                 height,
             };
 

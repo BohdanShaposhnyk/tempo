@@ -1,14 +1,23 @@
+import { MidgardAction } from "src/modules/thorchain/interfaces/thorchain.interface";
+
 /**
  * Format amount for display (convert from base units)
  */
-export function formatAmount(amount: string | number): string | number {
+export function formatAmount(amount: string | number, divisor = 100000000): number {
+    return parseFloat(amount.toString()) / divisor;
+}
+
+export function getStreamSwapSizeInUSD(action: MidgardAction): number {
     try {
-        const num = BigInt(amount);
-        const divisor = BigInt(100000000); // 8 decimals for THORChain
-        const whole = num / divisor;
-        const fraction = num % divisor;
-        return `${whole}.${fraction.toString().padStart(8, '0')}`;
+        const { swap: { streamingSwapMeta, outPriceUSD } = {} } = action.metadata ?? {};
+        const { outEstimation } = streamingSwapMeta ?? {};
+        if (!outEstimation || !outPriceUSD) {
+            return 0;
+        }
+
+        return formatAmount(outEstimation) * formatAmount(outPriceUSD);
     } catch (error) {
-        return amount;
+        return 0;
     }
 }
+
