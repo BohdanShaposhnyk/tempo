@@ -4,7 +4,8 @@ import { MidgardService } from './midgard.service';
 import { THORCHAIN_CONSTANTS } from 'src/common/constants/thorchain.constants';
 import { TRADE_CONFIG_CONSTANTS } from 'src/common/constants/tradeConfig.constants';
 import { StreamSwapDetectedEvent, ValidOpportunityDetectedEvent } from '../events/thorchain.events';
-import { MidgardAction, StreamSwapOpportunity, TradeDirection } from '../interfaces/thorchain.interface';
+import { MidgardAction, StreamSwapOpportunity } from '../interfaces/thorchain.interface';
+import { TradeDirection } from '../interfaces/trade.interface';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { formatAmount, getStreamSwapSizeInUSD } from 'src/common/utils/format.utils';
 
@@ -149,7 +150,7 @@ export class DetectorService implements OnApplicationBootstrap {
         const { $size, estimatedDurationSeconds } = opportunity;
 
         if ($size < TRADE_CONFIG_CONSTANTS.MIN_OPPORTUNITY_SIZE_$) {
-            this.logger.debug(`Size to small: ${$size}$`,
+            this.logger.debug(`Size too small: ${$size}$`,
             );
             return;
         }

@@ -6,7 +6,8 @@ import { PollerService } from './services/poller.service';
 import { MidgardService } from './services/midgard.service';
 import { DetectorService } from './services/detector.service';
 import { ThorchainHealthIndicator } from './services/thorchain.health';
-import { TradeService } from './services/trade.sevice';
+// import { TradeService } from './services/trade.sevice';
+import { TradePlannerService } from './services/tradePlanner.service';
 
 @Module({
     imports: [
@@ -21,7 +22,8 @@ import { TradeService } from './services/trade.sevice';
         PollerService,
         MidgardService,
         DetectorService,
-        TradeService,
+        // TradeService,
+        TradePlannerService,
         ThorchainHealthIndicator,
     ],
     exports: [ThorchainHealthIndicator],

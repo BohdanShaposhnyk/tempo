@@ -1,3 +1,5 @@
+import { TradeDirection } from "./trade.interface";
+
 /**
  * Midgard API Response Types
  * Based on actual API response from https://midgard.ninerealms.com/v2/doc#operation/GetActions
@@ -110,9 +112,4 @@ export interface ThorchainConfig {
     midgardApiUrl: string;
     rujiToken: string;
     runeToken: string;
-}
-
-export enum TradeDirection {
-    short = "short",
-    long = "long",
 }
