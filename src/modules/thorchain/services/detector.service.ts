@@ -71,11 +71,11 @@ export class DetectorService implements OnApplicationBootstrap {
 
             // Parse string values to numbers
             const count = parseInt(streamingMeta.count);
-            const interval = parseInt(streamingMeta.interval);
+            const interval = parseInt(streamingMeta.interval) || 1; // default to 1 block interval
             const quantity = parseInt(streamingMeta.quantity);
             // Calculate estimated duration
             // interval is in blocks, THORChain blocks are ~6 seconds
-            const estimatedDurationSeconds = count * interval * 6;
+            const estimatedDurationSeconds = quantity * interval * 6;
             const tradeDirection = direction.from === THORCHAIN_CONSTANTS.RUJI_TOKEN ? TradeDirection.long : TradeDirection.short;
             const $size = getStreamSwapSizeInUSD(action);
 
@@ -96,6 +96,7 @@ export class DetectorService implements OnApplicationBootstrap {
                 estimatedDurationSeconds,
                 pools: action.pools ?? [],
                 height,
+                status: action.status,
             };
 
             // Emit stream swap detected event
@@ -116,20 +117,19 @@ export class DetectorService implements OnApplicationBootstrap {
      */
     private logOpportunity(opportunity: StreamSwapOpportunity): void {
         const timestamp = opportunity.timestamp.toISOString();
-        const { inputAsset, outputAsset } = opportunity;
-        const amount = formatAmount(opportunity.inputAmount);
+        const { inputAsset, outputAsset, $size } = opportunity;
         const duration = opportunity.estimatedDurationSeconds.toFixed(0);
         const txHash = opportunity.txHash;
 
         this.logger.log(
-            `[OPPORTUNITY] ${timestamp} | ${inputAsset} -> ${outputAsset} | Amount: ${amount} | Duration: ${duration}s | TxHash: ${txHash}`,
+            `[OPPORTUNITY] ${timestamp} | ${inputAsset} -> ${outputAsset} | Size: $${$size} | Duration: ${duration}s | TxHash: ${txHash}`,
         );
 
         // Additional detailed logging
         this.logger.debug(
             `Stream config: ${opportunity.streamingConfig.count} swaps, ` +
             `${opportunity.streamingConfig.quantity} quantity, ` +
-            `${opportunity.streamingConfig.interval}ns interval`,
+            `${opportunity.streamingConfig.interval} blocks interval`,
         );
         this.logger.debug(`Pools involved: ${opportunity.pools.join(', ')}`);
     }
@@ -147,7 +147,12 @@ export class DetectorService implements OnApplicationBootstrap {
             `Stream swap opportunity detected and logged: ${opportunity.txHash}`,
         );
 
-        const { $size, estimatedDurationSeconds } = opportunity;
+        const { $size, estimatedDurationSeconds, status } = opportunity;
+
+        if (status !== "pending") {
+            this.logger.debug(`Stream swap is over, skipping: ${status}`);
+            return;
+        }
 
         if ($size < TRADE_CONFIG_CONSTANTS.MIN_OPPORTUNITY_SIZE_$) {
             this.logger.debug(`Size too small: ${$size}$`,

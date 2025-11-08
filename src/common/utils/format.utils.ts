@@ -9,15 +9,14 @@ export function formatAmount(amount: string | number, divisor = 100000000): numb
 
 export function getStreamSwapSizeInUSD(action: MidgardAction): number {
     try {
-        const { swap: { streamingSwapMeta, outPriceUSD } = {} } = action.metadata ?? {};
-        const { outEstimation } = streamingSwapMeta ?? {};
-        if (!outEstimation || !outPriceUSD) {
-            return 0;
-        }
+        const { swap: { streamingSwapMeta, outPriceUSD = '0', inPriceUSD = '0' } = {} } = action.metadata ?? {};
+        const { outEstimation, depositedCoin } = streamingSwapMeta ?? {};
 
-        return formatAmount(outEstimation) * formatAmount(outPriceUSD);
+        const [inAmount, outAmount] = [depositedCoin?.amount ?? '0', outEstimation ?? '0'].map(formatAmount);
+
+        return Math.max(inAmount * parseFloat(inPriceUSD), outAmount * parseFloat(outPriceUSD));
+
     } catch (error) {
         return 0;
     }
 }
-

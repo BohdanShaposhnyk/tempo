@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule } from '../config/config.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { KrakenTradeService } from './services/trade.sevice';
+import { KrakenAuthService } from './services/auth.service';
 
 @Module({
     imports: [
@@ -15,8 +16,9 @@ import { KrakenTradeService } from './services/trade.sevice';
     ],
     providers: [
         KrakenTradeService,
+        KrakenAuthService,
     ],
-    exports: [KrakenTradeService],
+    exports: [KrakenTradeService, KrakenAuthService],
 })
 export class KrakenModule { }
 

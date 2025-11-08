@@ -5,6 +5,8 @@ import { TerminusModule } from '@nestjs/terminus';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ThorchainModule } from './modules/thorchain/thorchain.module';
+import { TradeModule } from './modules/trade/trade.module';
+import { ConfigModule as AppConfigModule } from './modules/config/config.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -23,7 +25,9 @@ import { HealthController } from './health/health.controller';
       ignoreErrors: false,
     }),
     TerminusModule,
+    AppConfigModule,
     ThorchainModule,
+    TradeModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

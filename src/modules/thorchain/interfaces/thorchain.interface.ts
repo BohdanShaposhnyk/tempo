@@ -4,9 +4,11 @@ import { TradeDirection } from "./trade.interface";
  * Midgard API Response Types
  * Based on actual API response from https://midgard.ninerealms.com/v2/doc#operation/GetActions
  */
+export type MidgardActionStatus = "success" | "pending" | "failed";
+
 export interface MidgardAction {
     type: string;
-    status: string;
+    status: MidgardActionStatus;
     in: MidgardTx[];
     out: MidgardTx[];
     metadata?: {
@@ -103,6 +105,7 @@ export interface StreamSwapOpportunity {
     height: string;
     $size: number;
     tradeDirection: TradeDirection;
+    status: MidgardActionStatus;
 }
 
 /**
