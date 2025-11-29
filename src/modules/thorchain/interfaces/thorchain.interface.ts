@@ -106,6 +106,35 @@ export interface StreamSwapOpportunity {
     $size: number;
     tradeDirection: TradeDirection;
     status: MidgardActionStatus;
+    address: string;
+}
+
+/**
+ * THORNode API Response Types
+ */
+export interface ThornodeTxStatus {
+    tx: {
+        id: string;
+        chain: string;
+        from_address: string;
+        to_address: string;
+        coins: Array<{
+            asset: string;
+            amount: string;
+        }>;
+        gas?: Array<{
+            asset: string;
+            amount: string;
+        }>;
+        memo?: string;
+    };
+    stages: {
+        inbound_observed?: { completed: boolean; final_count: number; pre_confirmation_count?: number };
+        inbound_confirmation_counted?: { completed: boolean; remaining_confirmation_seconds?: number };
+        inbound_finalised?: { completed: boolean };
+        swap_status?: { pending: boolean };
+        swap_finalised?: { completed: boolean };
+    };
 }
 
 /**

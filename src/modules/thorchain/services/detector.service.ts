@@ -1,13 +1,14 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { MidgardService } from './midgard.service';
+import { ThornodeService } from './thornode.service';
 import { THORCHAIN_CONSTANTS } from 'src/common/constants/thorchain.constants';
 import { TRADE_CONFIG_CONSTANTS } from 'src/common/constants/tradeConfig.constants';
 import { StreamSwapDetectedEvent, ValidOpportunityDetectedEvent } from '../events/thorchain.events';
 import { MidgardAction, StreamSwapOpportunity } from '../interfaces/thorchain.interface';
 import { TradeDirection } from '../interfaces/trade.interface';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { formatAmount, getStreamSwapSizeInUSD } from 'src/common/utils/format.utils';
+import { formatAmount, getStreamSwapSizeInUSD, calculateSizeFromThornodeTx } from 'src/common/utils/format.utils';
 
 @Injectable()
 export class DetectorService implements OnApplicationBootstrap {
@@ -15,6 +16,7 @@ export class DetectorService implements OnApplicationBootstrap {
 
     constructor(
         private readonly midgardService: MidgardService,
+        private readonly thornodeService: ThornodeService,
         private readonly eventEmitter: EventEmitter2,
     ) { }
 
@@ -77,14 +79,36 @@ export class DetectorService implements OnApplicationBootstrap {
             // interval is in blocks, THORChain blocks are ~6 seconds
             const estimatedDurationSeconds = quantity * interval * 6;
             const tradeDirection = direction.from === THORCHAIN_CONSTANTS.RUJI_TOKEN ? TradeDirection.long : TradeDirection.short;
-            const $size = getStreamSwapSizeInUSD(action);
+
+            // Fetch transaction status from THORNode for reliable data
+            let inputAmount = action.in[0]?.coins[0]?.amount ?? '0';
+            let $size = getStreamSwapSizeInUSD(action); // Fallback value
+
+            const txStatus = await this.thornodeService.getTransactionStatus(txHash);
+
+            if (txStatus && txStatus.tx?.coins && txStatus.tx.coins.length > 0) {
+                // Use THORNode data as source of truth
+                inputAmount = txStatus.tx.coins[0].amount;
+
+                // Get asset price from Midgard metadata for USD calculation
+                const assetPriceUSD = parseFloat(action.metadata?.swap?.inPriceUSD || '0');
+
+                if (assetPriceUSD > 0) {
+                    $size = calculateSizeFromThornodeTx(txStatus, assetPriceUSD);
+                    this.logger.debug(`Using THORNode data for tx ${txHash}: amount=${inputAmount}, size=$${$size}`);
+                } else {
+                    this.logger.warn(`Asset price unavailable for tx ${txHash}, using fallback size calculation`);
+                }
+            } else {
+                this.logger.warn(`THORNode data unavailable for tx ${txHash}, using Midgard fallback data`);
+            }
 
             const opportunity: StreamSwapOpportunity = {
                 txHash,
                 timestamp: new Date(parseInt(action.date) / 1000000), // Convert from nanoseconds to milliseconds
                 inputAsset: direction.from,
                 outputAsset: direction.to,
-                inputAmount: action.in[0]?.coins[0]?.amount ?? '0',
+                inputAmount,
                 outputAmount: streamingMeta.outEstimation ?? '0',
                 $size,
                 tradeDirection,
@@ -97,6 +121,7 @@ export class DetectorService implements OnApplicationBootstrap {
                 pools: action.pools ?? [],
                 height,
                 status: action.status,
+                address: action.in[0]?.address ?? '',
             };
 
             // Emit stream swap detected event
@@ -170,7 +195,7 @@ export class DetectorService implements OnApplicationBootstrap {
 
         this.eventEmitter.emit(
             'validopportunity.detected',
-            new ValidOpportunityDetectedEvent(opportunity),
+            new ValidOpportunityDetectedEvent(opportunity, opportunity.address),
         );
 
     }

@@ -8,6 +8,9 @@ export class StreamSwapDetectedEvent {
 }
 
 export class ValidOpportunityDetectedEvent {
-    constructor(public readonly opportunity: StreamSwapOpportunity) { }
+    constructor(
+        public readonly opportunity: StreamSwapOpportunity,
+        public readonly address: string,
+    ) { }
 }
 
