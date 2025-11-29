@@ -2,6 +2,8 @@ import { Controller, Post, Get, Delete, Body, Res, HttpStatus, Query } from '@ne
 import type { Response } from 'express';
 import { TelegramConfigService } from './telegram-config.service';
 import { TelegramService } from './telegram.service';
+import { TelegramCommandsService } from './telegram-commands.service';
+import type { TelegramUpdate } from './telegram-commands.service';
 import { StreamSwapOpportunity } from '../thorchain/interfaces/thorchain.interface';
 import { TradeDirection } from '../thorchain/interfaces/trade.interface';
 
@@ -15,6 +17,7 @@ export class TelegramController {
     constructor(
         private readonly configService: TelegramConfigService,
         private readonly telegramService: TelegramService,
+        private readonly commandsService: TelegramCommandsService,
     ) { }
 
     /**
@@ -178,6 +181,22 @@ export class TelegramController {
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
                 success: false,
                 message: `Test failed: ${error.message}`
+            });
+        }
+    }
+
+    /**
+     * Telegram webhook endpoint
+     */
+    @Post('webhook')
+    async handleWebhook(@Body() update: TelegramUpdate, @Res() res: Response) {
+        try {
+            await this.commandsService.handleMessage(update);
+            return res.status(HttpStatus.OK).json({ ok: true });
+        } catch (error) {
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+                ok: false,
+                error: error.message,
             });
         }
     }

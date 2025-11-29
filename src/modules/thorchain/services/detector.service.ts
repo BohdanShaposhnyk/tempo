@@ -4,6 +4,7 @@ import { MidgardService } from './midgard.service';
 import { ThornodeService } from './thornode.service';
 import { THORCHAIN_CONSTANTS } from 'src/common/constants/thorchain.constants';
 import { TRADE_CONFIG_CONSTANTS } from 'src/common/constants/tradeConfig.constants';
+import { TradeConfigService } from 'src/modules/config/trade-config.service';
 import { StreamSwapDetectedEvent, ValidOpportunityDetectedEvent } from '../events/thorchain.events';
 import { MidgardAction, StreamSwapOpportunity } from '../interfaces/thorchain.interface';
 import { TradeDirection } from '../interfaces/trade.interface';
@@ -17,6 +18,7 @@ export class DetectorService implements OnApplicationBootstrap {
     constructor(
         private readonly midgardService: MidgardService,
         private readonly thornodeService: ThornodeService,
+        private readonly tradeConfigService: TradeConfigService,
         private readonly eventEmitter: EventEmitter2,
     ) { }
 
@@ -179,14 +181,17 @@ export class DetectorService implements OnApplicationBootstrap {
             return;
         }
 
-        if ($size < TRADE_CONFIG_CONSTANTS.MIN_OPPORTUNITY_SIZE_$) {
-            this.logger.debug(`Size too small: ${$size}$`,
+        const minSize = this.tradeConfigService.getMinOpportunitySize$();
+        const minDuration = this.tradeConfigService.getMinOpportunityDurationS();
+
+        if ($size < minSize) {
+            this.logger.debug(`Size too small: ${$size}$ (min: $${minSize})`,
             );
             return;
         }
 
-        if (estimatedDurationSeconds < TRADE_CONFIG_CONSTANTS.MIN_OPPORTUNITY_DURATION_S) {
-            this.logger.debug(`Too fast: ${estimatedDurationSeconds}s`,
+        if (estimatedDurationSeconds < minDuration) {
+            this.logger.debug(`Too fast: ${estimatedDurationSeconds}s (min: ${minDuration}s)`,
             );
             return;
         }

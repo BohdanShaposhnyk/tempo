@@ -32,35 +32,15 @@ export class TelegramService {
             }
 
             const message = this.formatMessage(opportunity, address, isTest);
-            const url = `${this.apiUrl}/bot${config.botToken}/sendMessage`;
+            const success = await this.sendMessage(config.chatId, message, 'Markdown', true);
 
-            const response = await firstValueFrom(
-                this.httpService.post(url, {
-                    chat_id: config.chatId,
-                    text: message,
-                    parse_mode: 'Markdown',
-                    disable_web_page_preview: true
-                }).pipe(
-                    catchError((error: AxiosError) => {
-                        if (error.response) {
-                            this.logger.error(
-                                `Telegram API error: ${error.response.status} - ${JSON.stringify(error.response.data)}`,
-                            );
-                        } else {
-                            this.logger.error(`Telegram API request failed: ${error.message}`);
-                        }
-                        return of(null);
-                    }),
-                ),
-            );
-
-            if (response && response.data?.ok) {
+            if (success) {
                 this.logger.debug(`Telegram notification sent successfully for tx ${opportunity.txHash}`);
-                return true;
             } else {
-                this.logger.warn(`Failed to send Telegram notification: ${response?.data?.description || 'Unknown error'}`);
-                return false;
+                this.logger.warn(`Failed to send Telegram notification for tx ${opportunity.txHash}`);
             }
+
+            return success;
         } catch (error) {
             this.logger.error(`Error sending Telegram notification: ${error.message}`);
             return false;
@@ -114,19 +94,58 @@ export class TelegramService {
                 return false;
             }
 
-            const url = `${this.apiUrl}/bot${config.botToken}/sendMessage`;
             const testMessage = '✅ Telegram notification test - configuration successful!';
+            return await this.sendMessage(config.chatId, testMessage, null);
+        } catch (error) {
+            this.logger.error(`Error sending test message: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * Send arbitrary message to Telegram chat
+     * @param chatId Chat ID to send message to
+     * @param text Message text
+     * @param parseMode Optional parse mode (Markdown, HTML, etc.)
+     * @param disableWebPagePreview Optional flag to disable web page preview
+     */
+    async sendMessage(
+        chatId: string,
+        text: string,
+        parseMode: 'Markdown' | 'HTML' | null = 'Markdown',
+        disableWebPagePreview = false,
+    ): Promise<boolean> {
+        try {
+            const config = await this.configService.getTelegramConfig();
+
+            if (!config.botToken) {
+                this.logger.warn('Telegram bot token not configured');
+                return false;
+            }
+
+            const url = `${this.apiUrl}/bot${config.botToken}/sendMessage`;
+            const payload: any = {
+                chat_id: chatId,
+                text,
+            };
+
+            if (parseMode) {
+                payload.parse_mode = parseMode;
+            }
+
+            if (disableWebPagePreview) {
+                payload.disable_web_page_preview = true;
+            }
 
             const response = await firstValueFrom(
-                this.httpService.post(url, {
-                    chat_id: config.chatId,
-                    text: testMessage,
-                }).pipe(
+                this.httpService.post(url, payload).pipe(
                     catchError((error: AxiosError) => {
                         if (error.response) {
                             this.logger.error(
-                                `Telegram test error: ${error.response.status} - ${JSON.stringify(error.response.data)}`,
+                                `Telegram API error: ${error.response.status} - ${JSON.stringify(error.response.data)}`,
                             );
+                        } else {
+                            this.logger.error(`Telegram API request failed: ${error.message}`);
                         }
                         return of(null);
                     }),
@@ -135,7 +154,7 @@ export class TelegramService {
 
             return response?.data?.ok === true;
         } catch (error) {
-            this.logger.error(`Error sending test message: ${error.message}`);
+            this.logger.error(`Error sending message: ${error.message}`);
             return false;
         }
     }
