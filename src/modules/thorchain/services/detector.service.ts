@@ -3,10 +3,9 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { MidgardService } from './midgard.service';
 import { ThornodeService } from './thornode.service';
 import { THORCHAIN_CONSTANTS } from 'src/common/constants/thorchain.constants';
-import { TRADE_CONFIG_CONSTANTS } from 'src/common/constants/tradeConfig.constants';
 import { TradeConfigService } from 'src/modules/config/trade-config.service';
 import { StreamSwapDetectedEvent, ValidOpportunityDetectedEvent } from '../events/thorchain.events';
-import { MidgardAction, StreamSwapOpportunity } from '../interfaces/thorchain.interface';
+import { MidgardAction, StreamSwapOpportunity, ThornodeTxStatus } from '../interfaces/thorchain.interface';
 import { TradeDirection } from '../interfaces/trade.interface';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { formatAmount, getStreamSwapSizeInUSD, calculateSizeFromThornodeTx } from 'src/common/utils/format.utils';
@@ -24,6 +23,15 @@ export class DetectorService implements OnApplicationBootstrap {
 
     onApplicationBootstrap() {
         this.logger.log('Stream Swap Detector initialized and ready');
+    }
+
+    private getInputAmountAndSizeInUSD(action: MidgardAction, txStatus: ThornodeTxStatus | null): { $size: number, inputAmount: string } {
+        if (txStatus && txStatus.tx?.coins && txStatus.tx.coins.length > 0) {
+            const $size = calculateSizeFromThornodeTx(txStatus, parseFloat(action.metadata?.swap?.inPriceUSD || '0'));
+            const inputAmount = txStatus.tx.coins[0].amount;
+            return { $size, inputAmount };
+        }
+        return { $size: getStreamSwapSizeInUSD(action), inputAmount: action.in[0]?.coins[0]?.amount ?? '0' };
     }
 
     /**
@@ -61,6 +69,10 @@ export class DetectorService implements OnApplicationBootstrap {
         height: string,
     ): Promise<void> {
         try {
+            // Fetch transaction status from THORNode for reliable data
+            // This is used to get the input amount and size in USD
+            const txStatus = await this.thornodeService.getTransactionStatus(txHash);
+
             const direction = this.midgardService.getSwapDirection(action);
             if (!direction) {
                 this.logger.warn(`Could not determine swap direction for tx: ${txHash}`);
@@ -70,48 +82,25 @@ export class DetectorService implements OnApplicationBootstrap {
             const streamingMeta = action.metadata?.swap?.streamingSwapMeta;
             if (!streamingMeta) {
                 this.logger.warn(`No streamingSwapMeta found for tx: ${txHash}`);
-                return;
             }
 
             // Parse string values to numbers
-            const count = parseInt(streamingMeta.count);
-            const interval = parseInt(streamingMeta.interval) || 1; // default to 1 block interval
-            const quantity = parseInt(streamingMeta.quantity);
+            const count = parseInt(streamingMeta?.count ?? '1');
+            const interval = parseInt(streamingMeta?.interval ?? '1'); // default to 1 block interval
+            const quantity = parseInt(streamingMeta?.quantity ?? '1');
             // Calculate estimated duration
             // interval is in blocks, THORChain blocks are ~6 seconds
             const estimatedDurationSeconds = quantity * interval * 6;
             const tradeDirection = direction.from === THORCHAIN_CONSTANTS.RUJI_TOKEN ? TradeDirection.long : TradeDirection.short;
 
-            // Fetch transaction status from THORNode for reliable data
-            let inputAmount = action.in[0]?.coins[0]?.amount ?? '0';
-            let $size = getStreamSwapSizeInUSD(action); // Fallback value
-
-            const txStatus = await this.thornodeService.getTransactionStatus(txHash);
-
-            if (txStatus && txStatus.tx?.coins && txStatus.tx.coins.length > 0) {
-                // Use THORNode data as source of truth
-                inputAmount = txStatus.tx.coins[0].amount;
-
-                // Get asset price from Midgard metadata for USD calculation
-                const assetPriceUSD = parseFloat(action.metadata?.swap?.inPriceUSD || '0');
-
-                if (assetPriceUSD > 0) {
-                    $size = calculateSizeFromThornodeTx(txStatus, assetPriceUSD);
-                    this.logger.debug(`Using THORNode data for tx ${txHash}: amount=${inputAmount}, size=$${$size}`);
-                } else {
-                    this.logger.warn(`Asset price unavailable for tx ${txHash}, using fallback size calculation`);
-                }
-            } else {
-                this.logger.warn(`THORNode data unavailable for tx ${txHash}, using Midgard fallback data`);
-            }
-
+            const { $size, inputAmount } = this.getInputAmountAndSizeInUSD(action, txStatus);
             const opportunity: StreamSwapOpportunity = {
                 txHash,
                 timestamp: new Date(parseInt(action.date) / 1000000), // Convert from nanoseconds to milliseconds
                 inputAsset: direction.from,
                 outputAsset: direction.to,
                 inputAmount,
-                outputAmount: streamingMeta.outEstimation ?? '0',
+                outputAmount: streamingMeta?.outEstimation ?? '0',
                 $size,
                 tradeDirection,
                 streamingConfig: {

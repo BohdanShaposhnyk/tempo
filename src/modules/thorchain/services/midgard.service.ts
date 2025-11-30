@@ -122,8 +122,7 @@ export class MidgardService {
     isStreamSwap(action: MidgardAction): boolean {
         return (
             action.type === 'swap' &&
-            action.metadata?.swap?.isStreamingSwap === true &&
-            action.metadata.swap.streamingSwapMeta !== undefined
+            action.metadata?.swap?.isStreamingSwap === true
         );
     }
 
