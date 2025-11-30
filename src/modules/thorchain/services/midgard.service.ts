@@ -159,5 +159,14 @@ export class MidgardService {
             direction: TradeDirection.short,
         };
     }
+    getPrices(action: MidgardAction): {
+        in: number;
+        out: number;
+    } {
+        return {
+            in: parseFloat(action.metadata?.swap?.inPriceUSD ?? '0'),
+            out: parseFloat(action.metadata?.swap?.outPriceUSD ?? '0'),
+        };
+    }
 }
 

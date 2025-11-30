@@ -146,6 +146,10 @@ export class TelegramController {
                     quantity: 2,
                     interval: 3,
                 },
+                prices: {
+                    in: 1,
+                    out: 0.5,
+                },
                 estimatedDurationSeconds: 180,
                 pools: ['THOR.RUJI', 'THOR.TCY'],
                 height: '12345678',

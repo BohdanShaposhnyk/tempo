@@ -59,13 +59,13 @@ export class TelegramService {
         address: string,
         isTest = false
     ): string {
-        const { tradeDirection, $size, inputAsset, outputAsset, inputAmount, outputAmount, txHash } = opportunity;
+        const { tradeDirection, $size, inputAsset, outputAsset, inputAmount, txHash, prices } = opportunity;
 
         const emoji = tradeDirection === TradeDirection.long ? '🟢' : '🔴';
         const directionText = tradeDirection === TradeDirection.long ? '*RUJI* bought!' : '*RUJI* dumped!';
 
         const formattedInputAmount = formatAmount(inputAmount).toFixed(2);
-        const formattedOutputAmount = formatAmount(outputAmount).toFixed(2);
+        const outputAmount = `~ ${Number($size / prices.out).toFixed(2)}`;
         const formattedSize = $size.toFixed(0);
 
         const txLink = `[tx](https://thorchain.net/tx/${txHash})`;
@@ -78,7 +78,7 @@ export class TelegramService {
 
         return (
             `${testPrefix}${emoji} *$${formattedSize}* ${directionText}\n\n` +
-            `    ${formattedInputAmount} *${escInputAsset}* → ${formattedOutputAmount} *${escOutputAsset}*\n\n` +
+            `    ${formattedInputAmount} *${escInputAsset}* → ${outputAmount} *${escOutputAsset}*\n\n` +
             `    ${txLink} · ${addressLink}`
         );
     }

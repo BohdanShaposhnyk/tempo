@@ -26,8 +26,9 @@ export class DetectorService implements OnApplicationBootstrap {
     }
 
     private getInputAmountAndSizeInUSD(action: MidgardAction, txStatus: ThornodeTxStatus | null): { $size: number, inputAmount: string } {
+        const prices = this.midgardService.getPrices(action);
         if (txStatus && txStatus.tx?.coins && txStatus.tx.coins.length > 0) {
-            const $size = calculateSizeFromThornodeTx(txStatus, parseFloat(action.metadata?.swap?.inPriceUSD || '0'));
+            const $size = calculateSizeFromThornodeTx(txStatus, prices.in);
             const inputAmount = txStatus.tx.coins[0].amount;
             return { $size, inputAmount };
         }
@@ -74,6 +75,7 @@ export class DetectorService implements OnApplicationBootstrap {
             const txStatus = await this.thornodeService.getTransactionStatus(txHash);
 
             const swapAssets = this.midgardService.getSwapAssets(action);
+            const prices = this.midgardService.getPrices(action);
 
             const streamingMeta = action.metadata?.swap?.streamingSwapMeta;
             if (!streamingMeta) {
@@ -103,6 +105,7 @@ export class DetectorService implements OnApplicationBootstrap {
                     quantity,
                     interval,
                 },
+                prices,
                 estimatedDurationSeconds,
                 pools: action.pools ?? [],
                 height,

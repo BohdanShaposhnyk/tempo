@@ -100,6 +100,10 @@ export interface StreamSwapOpportunity {
         quantity: number;
         interval: number;
     };
+    prices: {
+        in: number;
+        out: number;
+    },
     estimatedDurationSeconds: number;
     pools: string[];
     height: string;
