@@ -73,11 +73,7 @@ export class DetectorService implements OnApplicationBootstrap {
             // This is used to get the input amount and size in USD
             const txStatus = await this.thornodeService.getTransactionStatus(txHash);
 
-            const direction = this.midgardService.getSwapDirection(action);
-            if (!direction) {
-                this.logger.warn(`Could not determine swap direction for tx: ${txHash}`);
-                return;
-            }
+            const swapAssets = this.midgardService.getSwapAssets(action);
 
             const streamingMeta = action.metadata?.swap?.streamingSwapMeta;
             if (!streamingMeta) {
@@ -91,18 +87,17 @@ export class DetectorService implements OnApplicationBootstrap {
             // Calculate estimated duration
             // interval is in blocks, THORChain blocks are ~6 seconds
             const estimatedDurationSeconds = quantity * interval * 6;
-            const tradeDirection = direction.from === THORCHAIN_CONSTANTS.RUJI_TOKEN ? TradeDirection.long : TradeDirection.short;
 
             const { $size, inputAmount } = this.getInputAmountAndSizeInUSD(action, txStatus);
             const opportunity: StreamSwapOpportunity = {
                 txHash,
                 timestamp: new Date(parseInt(action.date) / 1000000), // Convert from nanoseconds to milliseconds
-                inputAsset: direction.from,
-                outputAsset: direction.to,
+                inputAsset: swapAssets.from,
+                outputAsset: swapAssets.to,
                 inputAmount,
                 outputAmount: streamingMeta?.outEstimation ?? '0',
                 $size,
-                tradeDirection,
+                tradeDirection: swapAssets.direction,
                 streamingConfig: {
                     count,
                     quantity,

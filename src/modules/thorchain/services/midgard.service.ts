@@ -10,6 +10,7 @@ import {
     MidgardCoin,
 } from '../interfaces/thorchain.interface';
 import { THORCHAIN_CONSTANTS } from '../../../common/constants/thorchain.constants';
+import { TradeDirection } from '../interfaces/trade.interface';
 
 @Injectable()
 export class MidgardService {
@@ -133,59 +134,30 @@ export class MidgardService {
     getSwapDirection(action: MidgardAction): {
         from: string;
         to: string;
-    } | null {
+        direction: TradeDirection;
+    } {
         // Try to get direction from in/out coins first
-        if (action.in && action.in.length > 0 && action.out && action.out.length > 0) {
-            const inCoin = action.in[0]?.coins?.[0];
+        const inCoin = action.in[0]?.coins?.[0];
 
-            // Find the first out entry with coins (skip empty/affiliate-only entries)
-            let outCoin: MidgardCoin | undefined = undefined;
-            for (const outTx of action.out) {
-                if (outTx.coins && outTx.coins.length > 0) {
-                    // Skip if this is just an affiliate fee (same asset as input)
-                    const coin = outTx.coins[0];
-                    if (coin && coin.asset !== inCoin?.asset) {
-                        outCoin = coin;
-                        break;
-                    }
-                }
-            }
-
-            if (inCoin && outCoin) {
-                return {
-                    from: inCoin.asset,
-                    to: outCoin.asset,
-                };
-            }
-        }
-
-        // Fallback: Use pools array (pools[0]=input, pools[1]=output)
-        // This works for pending stream swaps where out array might be empty
-        if (action.pools && action.pools.length >= 2) {
-            this.logger.debug(`Using pools array for direction: ${action.pools[0]} -> ${action.pools[1]}`);
+        if (inCoin.asset !== THORCHAIN_CONSTANTS.RUJI_TOKEN) {
             return {
-                from: action.pools[0],
-                to: action.pools[1],
+                from: inCoin.asset,
+                to: THORCHAIN_CONSTANTS.RUJI_TOKEN,
+                direction: TradeDirection.long,
             };
         }
 
-        // Last resort: Check if we can infer from metadata
-        if (action.metadata?.swap?.streamingSwapMeta) {
-            const meta = action.metadata.swap.streamingSwapMeta;
-            if (meta.inCoin?.asset && meta.outCoin?.asset) {
-                this.logger.debug(`Using streamingSwapMeta for direction: ${meta.inCoin.asset} -> ${meta.outCoin.asset}`);
-                return {
-                    from: meta.inCoin.asset,
-                    to: meta.outCoin.asset,
-                };
-            }
-        }
+        const otherCoin = action.pools?.find(pool => pool !== THORCHAIN_CONSTANTS.RUJI_TOKEN);
 
-        this.logger.warn(`Could not determine swap direction from any source. ` +
-            `Pools: ${action.pools?.length || 0}, ` +
-            `In: ${action.in?.length || 0}, ` +
-            `Out: ${action.out?.length || 0}`);
-        return null;
+        return otherCoin ? {
+            from: THORCHAIN_CONSTANTS.RUJI_TOKEN,
+            to: otherCoin,
+            direction: TradeDirection.short,
+        } : {
+            from: THORCHAIN_CONSTANTS.RUJI_TOKEN,
+            to: THORCHAIN_CONSTANTS.RUNE_TOKEN,
+            direction: TradeDirection.short,
+        };
     }
 }
 
