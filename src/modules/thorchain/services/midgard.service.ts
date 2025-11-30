@@ -131,7 +131,7 @@ export class MidgardService {
      * Extract swap direction from action
      * Uses pools array as fallback for pending/fresh stream swaps with empty out array
      */
-    getSwapDirection(action: MidgardAction): {
+    getSwapAssets(action: MidgardAction): {
         from: string;
         to: string;
         direction: TradeDirection;
