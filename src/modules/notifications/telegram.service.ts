@@ -51,7 +51,7 @@ export class TelegramService {
      * Format notification message
      */
     private trimAssetName(text: string): string {
-        return text.replace(/^.*[.\-\/]/, '');
+        return text.split(/[-./]/)?.[1] ?? text;
     }
 
     private formatMessage(
