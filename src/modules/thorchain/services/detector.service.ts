@@ -97,7 +97,7 @@ export class DetectorService implements OnApplicationBootstrap {
                 inputAsset: swapAssets.from,
                 outputAsset: swapAssets.to,
                 inputAmount,
-                outputAmount: streamingMeta?.outEstimation ?? '0',
+                outputAmount: `~ ${Number($size / prices.out).toFixed(2)}`,
                 $size,
                 tradeDirection: swapAssets.direction,
                 streamingConfig: {

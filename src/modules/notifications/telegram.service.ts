@@ -65,7 +65,7 @@ export class TelegramService {
         const directionText = tradeDirection === TradeDirection.long ? '*RUJI* bought!' : '*RUJI* dumped!';
 
         const formattedInputAmount = formatAmount(inputAmount).toFixed(2);
-        const outputAmount = `~ ${Number($size / prices.out).toFixed(2)}`;
+        const outputAmount = `≈ ${Number($size / (prices?.out ?? 1)).toFixed(0)}`;
         const formattedSize = $size.toFixed(0);
 
         const txLink = `[tx](https://thorchain.net/tx/${txHash})`;
@@ -141,11 +141,18 @@ export class TelegramService {
                 this.httpService.post(url, payload).pipe(
                     catchError((error: AxiosError) => {
                         if (error.response) {
+                            const errorData = error.response.data;
                             this.logger.error(
-                                `Telegram API error: ${error.response.status} - ${JSON.stringify(error.response.data)}`,
+                                `Telegram API error: ${error.response.status} - ${JSON.stringify(errorData)}`,
                             );
+                            // Log the actual error description from Telegram
+                            if (errorData && typeof errorData === 'object' && 'description' in errorData) {
+                                this.logger.error(`Telegram error description: ${errorData.description}`);
+                            }
+                        } else if (error.request) {
+                            this.logger.error(`Telegram API request failed (no response): ${error.message || JSON.stringify(error.request)}`);
                         } else {
-                            this.logger.error(`Telegram API request failed: ${error.message}`);
+                            this.logger.error(`Telegram API error: ${error.message || JSON.stringify(error)}`);
                         }
                         return of(null);
                     }),
