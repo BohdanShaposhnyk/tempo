@@ -6,7 +6,7 @@ import { TelegramService } from './telegram.service';
 import { TelegramCommandsService } from './telegram-commands.service';
 import type { TelegramUpdate } from './telegram-commands.service';
 import { MidgardService } from '../thorchain/services/midgard.service';
-import { StreamSwapOpportunity } from '../thorchain/interfaces/thorchain.interface';
+import { MidgardActionStatus, StreamSwapOpportunity } from '../thorchain/interfaces/thorchain.interface';
 import { TradeDirection } from '../thorchain/interfaces/trade.interface';
 
 interface SetTelegramConfigDto {
@@ -221,7 +221,7 @@ export class TelegramController {
             }
 
             // Use the first action (Midgard may return multiple actions for a tx)
-            const action = actions[0];
+            const action = { ...actions[0], status: 'pending' as MidgardActionStatus };
             const height = action.height || '0';
 
             // Emit action.detected event (same format as PollerService)
