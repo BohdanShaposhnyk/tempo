@@ -26,7 +26,7 @@ import { ThorchainHealthIndicator } from './services/thorchain.health';
         DetectorService,
         ThorchainHealthIndicator,
     ],
-    exports: [ThorchainHealthIndicator],
+    exports: [ThorchainHealthIndicator, MidgardService],
 })
 export class ThorchainModule { }
 

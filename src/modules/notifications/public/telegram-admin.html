@@ -177,6 +177,27 @@
         </form>
 
         <div id="status" class="status"></div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
+
+        <h2 style="color: #333; margin-bottom: 20px; font-size: 18px;">Test Historical Transaction</h2>
+        <div class="instructions">
+            <h3>Test with a historical transaction:</h3>
+            <p>Enter a THORChain transaction hash to fetch it from Midgard and trigger the detection pipeline. This will
+                emit an <code>action.detected</code> event, which will be processed by the DetectorService.</p>
+        </div>
+
+        <div class="form-group">
+            <label for="txHash">Transaction Hash:</label>
+            <input type="text" id="txHash" name="txHash" placeholder="Enter THORChain transaction hash"
+                style="font-family: monospace;">
+        </div>
+
+        <div class="button-group">
+            <button type="button" id="testTxHashBtn" class="btn-secondary">Test Historical TX</button>
+        </div>
+
+        <div id="txStatus" class="status"></div>
     </div>
 
     <script>
@@ -184,7 +205,9 @@
         const testBtn = document.getElementById('testBtn');
         const testOpportunityBtn = document.getElementById('testOpportunityBtn');
         const clearBtn = document.getElementById('clearBtn');
+        const testTxHashBtn = document.getElementById('testTxHashBtn');
         const status = document.getElementById('status');
+        const txStatus = document.getElementById('txStatus');
 
         function showStatus(message, type) {
             status.textContent = message;
@@ -194,6 +217,16 @@
 
         function hideStatus() {
             status.style.display = 'none';
+        }
+
+        function showTxStatus(message, type) {
+            txStatus.textContent = message;
+            txStatus.className = `status ${type}`;
+            txStatus.style.display = 'block';
+        }
+
+        function hideTxStatus() {
+            txStatus.style.display = 'none';
         }
 
         async function makeRequest(url, method = 'GET', data = null) {
@@ -269,6 +302,36 @@
                 await makeRequest('/notifications/telegram/config', 'DELETE');
             }
         });
+
+        testTxHashBtn.addEventListener('click', testHistoricalTx);
+
+        async function testHistoricalTx() {
+            const txHashInput = document.getElementById('txHash');
+            const txHash = txHashInput.value.trim();
+
+            if (!txHash) {
+                showTxStatus('Please enter a transaction hash', 'error');
+                return;
+            }
+
+            hideTxStatus();
+            showTxStatus('Fetching transaction from Midgard...', 'info');
+
+            try {
+                const result = await makeRequest('/notifications/telegram/test/txhash', 'POST', { txHash });
+                if (result && result.success) {
+                    const actionInfo = result.action;
+                    showTxStatus(
+                        `Success! Event emitted. TX: ${actionInfo.txHash}, Type: ${actionInfo.type}, Stream Swap: ${actionInfo.isStreamSwap ? 'Yes' : 'No'}`,
+                        'success'
+                    );
+                } else {
+                    showTxStatus(result?.message || 'Failed to test historical transaction', 'error');
+                }
+            } catch (error) {
+                showTxStatus(`Error: ${error.message}`, 'error');
+            }
+        }
 
         // Check initial status on page load
         window.addEventListener('load', async () => {

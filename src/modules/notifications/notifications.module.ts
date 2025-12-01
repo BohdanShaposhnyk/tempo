@@ -3,6 +3,7 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigModule } from '../config/config.module';
+import { ThorchainModule } from '../thorchain/thorchain.module';
 import { TelegramConfigService } from './telegram-config.service';
 import { TelegramService } from './telegram.service';
 import { TelegramCommandsService } from './telegram-commands.service';
@@ -18,6 +19,7 @@ import { NotificationListenerService } from './notification-listener.service';
         NestConfigModule,
         ConfigModule,
         EventEmitterModule,
+        ThorchainModule,
     ],
     providers: [
         TelegramConfigService,

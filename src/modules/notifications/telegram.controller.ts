@@ -1,9 +1,11 @@
 import { Controller, Post, Get, Delete, Body, Res, HttpStatus, Query } from '@nestjs/common';
 import type { Response } from 'express';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TelegramConfigService } from './telegram-config.service';
 import { TelegramService } from './telegram.service';
 import { TelegramCommandsService } from './telegram-commands.service';
 import type { TelegramUpdate } from './telegram-commands.service';
+import { MidgardService } from '../thorchain/services/midgard.service';
 import { StreamSwapOpportunity } from '../thorchain/interfaces/thorchain.interface';
 import { TradeDirection } from '../thorchain/interfaces/trade.interface';
 
@@ -18,6 +20,8 @@ export class TelegramController {
         private readonly configService: TelegramConfigService,
         private readonly telegramService: TelegramService,
         private readonly commandsService: TelegramCommandsService,
+        private readonly midgardService: MidgardService,
+        private readonly eventEmitter: EventEmitter2,
     ) { }
 
     /**
@@ -185,6 +189,62 @@ export class TelegramController {
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
                 success: false,
                 message: `Test failed: ${error.message}`
+            });
+        }
+    }
+
+    /**
+     * Test historical transaction by fetching from Midgard and emitting action.detected event
+     */
+    @Post('test/txhash')
+    async testHistoricalTx(
+        @Body() body: { txHash: string },
+        @Res() res: Response,
+    ) {
+        try {
+            const txHash = body.txHash?.trim();
+            if (!txHash) {
+                return res.status(HttpStatus.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Transaction hash is required',
+                });
+            }
+
+            // Fetch action from Midgard
+            const actions = await this.midgardService.getActionsByTxId(txHash);
+
+            if (!actions || actions.length === 0) {
+                return res.status(HttpStatus.NOT_FOUND).json({
+                    success: false,
+                    message: `No action found for transaction hash: ${txHash}`,
+                });
+            }
+
+            // Use the first action (Midgard may return multiple actions for a tx)
+            const action = actions[0];
+            const height = action.height || '0';
+
+            // Emit action.detected event (same format as PollerService)
+            this.eventEmitter.emit('action.detected', {
+                action,
+                height,
+            });
+
+            return res.status(HttpStatus.OK).json({
+                success: true,
+                message: `Action detected event emitted for transaction: ${txHash}`,
+                action: {
+                    txHash: action.in?.[0]?.txID || txHash,
+                    type: action.type,
+                    status: action.status,
+                    height,
+                    isStreamSwap: this.midgardService.isStreamSwap(action),
+                },
+            });
+        } catch (error) {
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+                success: false,
+                message: `Failed to test historical transaction: ${error.message}`,
             });
         }
     }
