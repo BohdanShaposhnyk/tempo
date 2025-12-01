@@ -6,7 +6,7 @@ import { TelegramService } from './telegram.service';
 import { TelegramCommandsService } from './telegram-commands.service';
 import type { TelegramUpdate } from './telegram-commands.service';
 import { MidgardService } from '../thorchain/services/midgard.service';
-import { MidgardActionStatus, StreamSwapOpportunity } from '../thorchain/interfaces/thorchain.interface';
+import { MidgardAction, MidgardActionStatus, StreamSwapOpportunity } from '../thorchain/interfaces/thorchain.interface';
 import { TradeDirection } from '../thorchain/interfaces/trade.interface';
 
 interface SetTelegramConfigDto {
@@ -221,7 +221,20 @@ export class TelegramController {
             }
 
             // Use the first action (Midgard may return multiple actions for a tx)
-            const action = { ...actions[0], status: 'pending' as MidgardActionStatus };
+            // Remove streamingSwapMeta from metadata to test thornode service
+            // Change status to pending so it ain't skipped by the detector
+            const action = {
+                ...actions[0],
+                status: 'pending' as MidgardActionStatus,
+                metadata: {
+                    ...actions[0].metadata,
+                    swap: {
+                        ...actions[0].metadata?.swap,
+                        streamingSwapMeta: undefined,
+                    },
+                },
+            } as MidgardAction;
+
             const height = action.height || '0';
 
             // Emit action.detected event (same format as PollerService)
