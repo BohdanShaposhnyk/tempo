@@ -4,8 +4,8 @@ import { firstValueFrom, catchError } from 'rxjs';
 import { of } from 'rxjs';
 import { AxiosError } from 'axios';
 import { TelegramConfigService } from './telegram-config.service';
-import { StreamSwapOpportunity } from '../thorchain/interfaces/thorchain.interface';
-import { TradeDirection } from '../thorchain/interfaces/trade.interface';
+import { StreamSwapOpportunity } from '../../thorchain/interfaces/thorchain.interface';
+import { TradeDirection } from '../../thorchain/interfaces/trade.interface';
 import { formatAmount } from 'src/common/utils/format.utils';
 
 @Injectable()

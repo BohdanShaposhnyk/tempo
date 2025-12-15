@@ -5,9 +5,9 @@ import { TelegramConfigService } from './telegram-config.service';
 import { TelegramService } from './telegram.service';
 import { TelegramCommandsService } from './telegram-commands.service';
 import type { TelegramUpdate } from './telegram-commands.service';
-import { MidgardService } from '../thorchain/services/midgard.service';
-import { MidgardAction, MidgardActionStatus, StreamSwapOpportunity } from '../thorchain/interfaces/thorchain.interface';
-import { TradeDirection } from '../thorchain/interfaces/trade.interface';
+import { MidgardService } from '../../thorchain/services/midgard.service';
+import { MidgardAction, MidgardActionStatus, StreamSwapOpportunity } from '../../thorchain/interfaces/thorchain.interface';
+import { TradeDirection } from '../../thorchain/interfaces/trade.interface';
 
 interface SetTelegramConfigDto {
     botToken: string;

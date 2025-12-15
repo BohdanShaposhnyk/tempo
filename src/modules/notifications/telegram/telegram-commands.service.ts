@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TelegramService } from './telegram.service';
-import { TradeConfigService } from '../config/trade-config.service';
+import { TradeConfigService } from '../../config/trade-config.service';
 
 export interface TelegramUpdate {
     update_id: number;

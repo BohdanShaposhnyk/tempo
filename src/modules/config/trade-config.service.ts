@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { TRADE_CONFIG_CONSTANTS } from 'src/common/constants/tradeConfig.constants';
 
 @Injectable()
 export class TradeConfigService {
     private readonly logger = new Logger(TradeConfigService.name);
-    private minOpportunitySize$: number = 4000; // Default value
-    private minOpportunityDurationS: number = 30; // Default value
+    private minOpportunitySize$: number = TRADE_CONFIG_CONSTANTS.MIN_OPPORTUNITY_SIZE_$; // Default value
+    private minOpportunityDurationS: number = TRADE_CONFIG_CONSTANTS.MIN_OPPORTUNITY_DURATION_S; // Default value
 
     /**
      * Get minimum opportunity size in USD

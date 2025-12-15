@@ -4,11 +4,12 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigModule } from '../config/config.module';
 import { ThorchainModule } from '../thorchain/thorchain.module';
-import { TelegramConfigService } from './telegram-config.service';
-import { TelegramService } from './telegram.service';
-import { TelegramCommandsService } from './telegram-commands.service';
-import { TelegramController } from './telegram.controller';
+import { TelegramConfigService } from './telegram/telegram-config.service';
+import { TelegramService } from './telegram/telegram.service';
+import { TelegramCommandsService } from './telegram/telegram-commands.service';
+import { TelegramController } from './telegram/telegram.controller';
 import { NotificationListenerService } from './notification-listener.service';
+import { WebSocketNotificationGateway } from './ws/websocket-notification.gateway';
 
 @Module({
     imports: [
@@ -26,9 +27,10 @@ import { NotificationListenerService } from './notification-listener.service';
         TelegramService,
         TelegramCommandsService,
         NotificationListenerService,
+        WebSocketNotificationGateway,
     ],
     controllers: [TelegramController],
-    exports: [TelegramService],
+    exports: [TelegramService, WebSocketNotificationGateway],
 })
 export class NotificationsModule { }
 

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { ValidOpportunityDetectedEvent } from '../thorchain/events/thorchain.events';
-import { TelegramService } from './telegram.service';
+import { TelegramService } from './telegram/telegram.service';
 
 @Injectable()
 export class NotificationListenerService implements OnApplicationBootstrap {

@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { WsAdapter } from '@nestjs/platform-ws';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -8,6 +9,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn', 'debug', 'verbose'],
   });
+
+  // Configure WebSocket adapter
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   // Enable validation pipes for DTOs
   app.useGlobalPipes(
@@ -25,6 +29,7 @@ async function bootstrap() {
 
   logger.log(`Application is running on: http://localhost:${port}`);
   logger.log(`Health check available at: http://localhost:${port}/health`);
+  logger.log(`WebSocket server available at: ws://localhost:${port}/ws`);
   logger.log('THORChain Stream Swap Detector is active');
 }
 
