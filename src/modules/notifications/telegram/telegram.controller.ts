@@ -283,7 +283,7 @@ export class TelegramController {
      */
     @Get('admin')
     async getAdminUI(@Res() res: Response) {
-        return res.sendFile('telegram-admin.html', { root: 'src/modules/notifications/public' });
+        return res.sendFile('telegram-admin.html', { root: 'src/modules/notifications/telegram/public' });
     }
 }
 
