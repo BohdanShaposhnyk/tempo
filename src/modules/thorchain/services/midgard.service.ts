@@ -31,7 +31,7 @@ export class MidgardService {
      */
     async getRecentActions(limit: number = 10): Promise<MidgardAction[]> {
         try {
-            this.logger.debug(`Fetching ${limit} recent RUJI actions`);
+            // this.logger.debug(`Fetching ${limit} recent RUJI actions`);
 
             const response$ = this.httpService
                 .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
