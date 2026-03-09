@@ -177,11 +177,11 @@ export class DetectorService implements OnApplicationBootstrap {
             return;
         }
 
-        if (estimatedDurationSeconds < minDuration) {
-            this.logger.debug(`Too fast: ${estimatedDurationSeconds}s (min: ${minDuration}s)`,
-            );
-            return;
-        }
+        // if (estimatedDurationSeconds < minDuration) {
+        //     this.logger.debug(`Too fast: ${estimatedDurationSeconds}s (min: ${minDuration}s)`,
+        //     );
+        //     return;
+        // }
 
         this.logger.log(`Valid opportunity spotted: size=${formatAmount($size)}$, duration=${estimatedDurationSeconds}s, direction=${opportunity.tradeDirection}, txHash=${opportunity.txHash}`);
 
