@@ -6,6 +6,8 @@ import { AxiosError } from 'axios';
 import { TelegramConfigService } from './telegram-config.service';
 import { StreamSwapOpportunity } from '../../thorchain/interfaces/thorchain.interface';
 import { formatAmount } from 'src/common/utils/format.utils';
+import { resolveSwapDirectionEmoji } from 'src/common/utils/swap-direction-emoji.utils';
+import { TradeConfigService } from 'src/modules/config/trade-config.service';
 
 @Injectable()
 export class TelegramService {
@@ -15,6 +17,7 @@ export class TelegramService {
     constructor(
         private readonly httpService: HttpService,
         private readonly configService: TelegramConfigService,
+        private readonly tradeConfigService: TradeConfigService,
     ) { }
 
     /**
@@ -60,8 +63,6 @@ export class TelegramService {
     ): string {
         const { $size, inputAsset, outputAsset, inputAmount, txHash, prices } = opportunity;
 
-   
-
         const formattedInputAmount = formatAmount(inputAmount).toFixed(2);
         const outputAmount = `≈ ${Number($size / (prices?.out ?? 1)).toFixed(0)}`;
         const formattedSize = $size.toFixed(0);
@@ -72,10 +73,17 @@ export class TelegramService {
         const escInputAsset = this.trimAssetName(inputAsset);
         const escOutputAsset = this.trimAssetName(outputAsset);
 
+        const directionEmoji = resolveSwapDirectionEmoji(
+            inputAsset,
+            outputAsset,
+            this.tradeConfigService.getMonitoredAssets(),
+        );
+        const directionPrefix = directionEmoji ? `${directionEmoji} ` : '';
+
         const testPrefix = isTest ? '🧪 *TEST NOTIFICATION*\n\n' : '';
 
         return (
-            `${testPrefix} *$${formattedSize}*\n\n` +
+            `${testPrefix} ${directionPrefix} *$${formattedSize}* *${escInputAsset}* → *${escOutputAsset}*\n\n` +
             `    ${formattedInputAmount} *${escInputAsset}* → ${outputAmount} *${escOutputAsset}*\n\n` +
             `    ${txLink} · ${addressLink}`
         );
