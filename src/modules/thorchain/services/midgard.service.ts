@@ -7,10 +7,9 @@ import {
     MidgardActionsResponse,
     MidgardPoolResponse,
     MidgardAction,
-    MidgardCoin,
 } from '../interfaces/thorchain.interface';
 import { THORCHAIN_CONSTANTS } from '../../../common/constants/thorchain.constants';
-import { TradeDirection } from '../interfaces/trade.interface';
+import { TradeConfigService } from 'src/modules/config/trade-config.service';
 
 @Injectable()
 export class MidgardService {
@@ -20,6 +19,7 @@ export class MidgardService {
     constructor(
         private readonly httpService: HttpService,
         private readonly configService: ConfigService,
+        private readonly tradeConfigService: TradeConfigService,
     ) {
         this.baseUrl =
             this.configService.get<string>('MIDGARD_API_URL') ||
@@ -31,14 +31,15 @@ export class MidgardService {
      */
     async getRecentActions(limit: number = 10): Promise<MidgardAction[]> {
         try {
-            // this.logger.debug(`Fetching ${limit} recent RUJI actions`);
+            const assets = this.tradeConfigService.getMonitoredAssets();
+            const assetParam = assets.join(',');
 
             const response$ = this.httpService
                 .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
                     params: {
                         limit: limit.toString(),
                         type: 'swap', // Only get swap actions
-                        asset: THORCHAIN_CONSTANTS.RUJI_TOKEN, // Filter by RUJI at API level
+                        asset: assetParam,
                     },
                 })
                 .pipe(
@@ -134,31 +135,25 @@ export class MidgardService {
     getSwapAssets(action: MidgardAction): {
         from: string;
         to: string;
-        direction: TradeDirection;
     } {
-        // Try to get direction from in/out coins first
-        const inCoin = action.in[0]?.coins?.[0];
-
-        if (inCoin.asset !== THORCHAIN_CONSTANTS.RUJI_TOKEN) {
+        if (action.pools.length === 2) {
             return {
-                from: inCoin.asset,
-                to: THORCHAIN_CONSTANTS.RUJI_TOKEN,
-                direction: TradeDirection.long,
+                from: action.pools[0],
+                to: action.pools[1],
             };
         }
+        // Try to get direction from in/out coins first
+        const inCoin = action.in[0].coins[0];
 
-        const otherCoin = action.pools?.find(pool => pool !== THORCHAIN_CONSTANTS.RUJI_TOKEN);
-
-        return otherCoin ? {
-            from: THORCHAIN_CONSTANTS.RUJI_TOKEN,
-            to: otherCoin,
-            direction: TradeDirection.short,
+        return inCoin.asset === THORCHAIN_CONSTANTS.RUNE_TOKEN ? {
+            from: THORCHAIN_CONSTANTS.RUNE_TOKEN,
+            to: action.pools[0],
         } : {
-            from: THORCHAIN_CONSTANTS.RUJI_TOKEN,
+            from: action.pools[0],
             to: THORCHAIN_CONSTANTS.RUNE_TOKEN,
-            direction: TradeDirection.short,
         };
     }
+
     getPrices(action: MidgardAction): {
         in: number;
         out: number;

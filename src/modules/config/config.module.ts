@@ -1,10 +1,8 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
-import { ApiKeyService } from './apikey.service';
 import { TradeConfigService } from './trade-config.service';
 import { ConfigController } from './config.controller';
-import { KrakenAuthService } from '../kraken/services/auth.service';
 
 @Module({
     imports: [
@@ -15,11 +13,9 @@ import { KrakenAuthService } from '../kraken/services/auth.service';
         }),
     ],
     providers: [
-        ApiKeyService,
         TradeConfigService,
-        KrakenAuthService,
     ],
     controllers: [ConfigController],
-    exports: [ApiKeyService, TradeConfigService, KrakenAuthService],
+    exports: [TradeConfigService],
 })
 export class ConfigModule { }

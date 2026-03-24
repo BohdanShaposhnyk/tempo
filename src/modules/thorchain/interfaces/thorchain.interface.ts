@@ -1,5 +1,3 @@
-import { TradeDirection } from "./trade.interface";
-
 /**
  * Midgard API Response Types
  * Based on actual API response from https://midgard.ninerealms.com/v2/doc#operation/GetActions
@@ -36,7 +34,7 @@ export interface MidgardAction {
             };
         };
     };
-    pools?: string[];
+    pools: string[];
     date: string;
     height: string;
 }
@@ -108,7 +106,6 @@ export interface StreamSwapOpportunity {
     pools: string[];
     height: string;
     $size: number;
-    tradeDirection: TradeDirection;
     status: MidgardActionStatus;
     address: string;
 }

@@ -64,9 +64,9 @@ export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
 
     private async poll(): Promise<void> {
         try {
-            // Get recent RUJI actions from Midgard
+            // Get recent swap actions from Midgard (filtered by configured assets)
             // Since we're filtering by asset at API level, we need fewer results
-            // 20 RUJI actions should cover extended periods reliably
+            // 20 actions should cover extended periods reliably
             const actions = await this.midgardService.getRecentActions(20);
 
             if (!actions || actions.length === 0) {
@@ -98,8 +98,8 @@ export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
                     continue;
                 }
 
-                // All actions returned are already RUJI-related (filtered by API)
-                this.logger.debug(`Found RUJI action at height ${height}, txID: ${txId}`);
+                // Actions match Midgard asset filter (OR of configured assets)
+                this.logger.debug(`Found monitored-asset action at height ${height}, txID: ${txId}`);
 
                 // Emit action detected event
                 this.eventEmitter.emit(
