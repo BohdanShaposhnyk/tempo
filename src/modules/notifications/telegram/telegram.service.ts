@@ -82,8 +82,10 @@ export class TelegramService {
 
         const testPrefix = isTest ? '🧪 *TEST NOTIFICATION*\n\n' : '';
 
+        const whalePrefix = $size >= this.tradeConfigService.getMinOpportunitySize$() * 10 ? '⭐ ' : '';
+
         return (
-            `${testPrefix} ${directionPrefix} *$${formattedSize}* *${escInputAsset}* → *${escOutputAsset}*\n\n` +
+            `${testPrefix} ${whalePrefix} ${directionPrefix} *$${formattedSize}* *${escInputAsset}* → *${escOutputAsset}*\n\n` +
             `    ${formattedInputAmount} *${escInputAsset}* → ${outputAmount} *${escOutputAsset}*\n\n` +
             `    ${txLink} · ${addressLink}`
         );
