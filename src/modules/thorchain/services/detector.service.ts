@@ -2,11 +2,9 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { MidgardService } from './midgard.service';
 import { ThornodeService } from './thornode.service';
-import { THORCHAIN_CONSTANTS } from 'src/common/constants/thorchain.constants';
 import { TradeConfigService } from 'src/modules/config/trade-config.service';
 import { StreamSwapDetectedEvent, ValidOpportunityDetectedEvent } from '../events/thorchain.events';
 import { MidgardAction, StreamSwapOpportunity, ThornodeTxStatus } from '../interfaces/thorchain.interface';
-import { TradeDirection } from '../interfaces/trade.interface';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { formatAmount, getStreamSwapSizeInUSD, calculateSizeFromThornodeTx } from 'src/common/utils/format.utils';
 
@@ -46,7 +44,7 @@ export class DetectorService implements OnApplicationBootstrap {
         try {
             const action = event.action;
 
-            // Check if this is a stream swap involving RUJI
+            // Check if this is a stream swap (actions already Midgard-filtered by asset)
             if (
                 this.midgardService.isStreamSwap(action)
             ) {
@@ -99,7 +97,6 @@ export class DetectorService implements OnApplicationBootstrap {
                 inputAmount,
                 outputAmount: `~ ${Number($size / prices.out).toFixed(2)}`,
                 $size,
-                tradeDirection: swapAssets.direction,
                 streamingConfig: {
                     count,
                     quantity,
@@ -183,7 +180,7 @@ export class DetectorService implements OnApplicationBootstrap {
         //     return;
         // }
 
-        this.logger.log(`Valid opportunity spotted: size=${formatAmount($size)}$, duration=${estimatedDurationSeconds}s, direction=${opportunity.tradeDirection}, txHash=${opportunity.txHash}`);
+        this.logger.log(`Valid opportunity spotted: size=${formatAmount($size)}$, duration=${estimatedDurationSeconds}s, txHash=${opportunity.txHash}`);
 
         this.eventEmitter.emit(
             'validopportunity.detected',

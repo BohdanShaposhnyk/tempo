@@ -39,12 +39,24 @@
         }
 
         input[type="text"],
-        input[type="password"] {
+        input[type="password"],
+        input[type="number"] {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: monospace;
             box-sizing: border-box;
         }
 
@@ -180,6 +192,37 @@
 
         <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
 
+        <h2 style="color: #333; margin-bottom: 20px; font-size: 18px;">Trade / detector</h2>
+        <div class="instructions">
+            <h3>Midgard polling &amp; opportunity filters:</h3>
+            <p>Minimum size and duration gate valid opportunities. <strong>Monitored assets</strong> are passed to
+                Midgard <code>asset</code> (OR: swaps involving at least one listed asset). One asset per line or
+                comma-separated.</p>
+        </div>
+
+        <form id="tradeConfigForm">
+            <div class="form-group">
+                <label for="tradeMinSize">Min opportunity size (USD):</label>
+                <input type="number" id="tradeMinSize" name="tradeMinSize" min="0" step="any" required>
+            </div>
+            <div class="form-group">
+                <label for="tradeMinDuration">Min opportunity duration (seconds):</label>
+                <input type="number" id="tradeMinDuration" name="tradeMinDuration" min="0" step="any" required>
+            </div>
+            <div class="form-group">
+                <label for="tradeAssets">Monitored Midgard assets:</label>
+                <textarea id="tradeAssets" name="tradeAssets"
+                    placeholder="THOR.RUJI&#10;THOR.TCY"></textarea>
+            </div>
+            <div class="button-group">
+                <button type="submit" class="btn-primary">Save trade config</button>
+            </div>
+        </form>
+
+        <div id="tradeConfigStatus" class="status"></div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
+
         <h2 style="color: #333; margin-bottom: 20px; font-size: 18px;">Test Historical Transaction</h2>
         <div class="instructions">
             <h3>Test with a historical transaction:</h3>
@@ -208,6 +251,8 @@
         const testTxHashBtn = document.getElementById('testTxHashBtn');
         const status = document.getElementById('status');
         const txStatus = document.getElementById('txStatus');
+        const tradeConfigForm = document.getElementById('tradeConfigForm');
+        const tradeConfigStatus = document.getElementById('tradeConfigStatus');
 
         function showStatus(message, type) {
             status.textContent = message;
@@ -227,6 +272,39 @@
 
         function hideTxStatus() {
             txStatus.style.display = 'none';
+        }
+
+        function showTradeConfigStatus(message, type) {
+            tradeConfigStatus.textContent = message;
+            tradeConfigStatus.className = `status ${type}`;
+            tradeConfigStatus.style.display = 'block';
+        }
+
+        function hideTradeConfigStatus() {
+            tradeConfigStatus.style.display = 'none';
+        }
+
+        function parseAssetsFromTextarea(text) {
+            return text
+                .split(/[\n,]+/)
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0);
+        }
+
+        async function loadTradeConfig() {
+            try {
+                const response = await fetch('/config/trade');
+                const result = await response.json();
+                if (!response.ok || !result.success || !result.config) {
+                    return;
+                }
+                const c = result.config;
+                document.getElementById('tradeMinSize').value = c.minSize;
+                document.getElementById('tradeMinDuration').value = c.minDuration;
+                document.getElementById('tradeAssets').value = (c.assets || []).join('\n');
+            } catch (e) {
+                /* ignore load errors */
+            }
         }
 
         async function makeRequest(url, method = 'GET', data = null) {
@@ -333,8 +411,47 @@
             }
         }
 
+        tradeConfigForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideTradeConfigStatus();
+
+            const minSize = parseFloat(document.getElementById('tradeMinSize').value);
+            const minDuration = parseFloat(document.getElementById('tradeMinDuration').value);
+            const assets = parseAssetsFromTextarea(document.getElementById('tradeAssets').value);
+
+            if (!isFinite(minSize) || minSize <= 0) {
+                showTradeConfigStatus('Min opportunity size must be a positive number', 'error');
+                return;
+            }
+            if (!isFinite(minDuration) || minDuration <= 0) {
+                showTradeConfigStatus('Min opportunity duration must be a positive number', 'error');
+                return;
+            }
+            if (assets.length === 0) {
+                showTradeConfigStatus('At least one monitored asset is required', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/config/trade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ minSize, minDuration, assets }),
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showTradeConfigStatus(result.message || 'Trade config saved', 'success');
+                } else {
+                    showTradeConfigStatus(result.message || 'Failed to save trade config', 'error');
+                }
+            } catch (err) {
+                showTradeConfigStatus(`Network error: ${err.message}`, 'error');
+            }
+        });
+
         // Check initial status on page load
         window.addEventListener('load', async () => {
+            await loadTradeConfig();
             const result = await makeRequest('/notifications/telegram/config/status');
             if (result && result.configured) {
                 showStatus('Telegram config is already configured', 'info');

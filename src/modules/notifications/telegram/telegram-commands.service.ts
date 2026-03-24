@@ -60,6 +60,9 @@ export class TelegramCommandsService {
                 case '/get_config':
                     await this.handleGetConfig(chatId);
                     break;
+                case '/set_assets':
+                    await this.handleSetAssets(chatId, args);
+                    break;
                 case '/help':
                     await this.handleHelp(chatId);
                     break;
@@ -115,10 +118,48 @@ export class TelegramCommandsService {
      */
     private async handleGetConfig(chatId: string): Promise<void> {
         const config = this.tradeConfigService.getConfig();
+        const assetsLine = config.assets.length
+            ? config.assets.map((a) => `  • \`${a}\``).join('\n')
+            : '  _(none)_';
         const message = `*Current Configuration:*\n\n` +
             `💰 Min Size: *$${config.minSize}*\n` +
-            `⏱️ Min Duration: *${config.minDuration}s*`;
+            `⏱️ Min Duration: *${config.minDuration}s*\n` +
+            `🪙 Monitored assets:\n${assetsLine}`;
         await this.sendMessage(chatId, message);
+    }
+
+    /**
+     * Parse asset list from Telegram args (space and/or comma separated)
+     */
+    private parseAssetArgs(args: string[]): string[] {
+        if (args.length === 0) {
+            return [];
+        }
+        const joined = args.join(' ');
+        return joined
+            .split(/[\s,]+/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0);
+    }
+
+    /**
+     * Handle /set_assets command
+     */
+    private async handleSetAssets(chatId: string, args: string[]): Promise<void> {
+        const assets = this.parseAssetArgs(args);
+        if (assets.length === 0) {
+            await this.sendMessage(
+                chatId,
+                'Usage: /set_assets <asset1> [asset2] ...\nExample: /set_assets THOR.RUJI THOR.TCY\nOr: /set_assets THOR.RUJI,THOR.TCY',
+            );
+            return;
+        }
+
+        this.tradeConfigService.setMonitoredAssets(assets);
+        await this.sendMessage(
+            chatId,
+            `✅ Monitored assets set to:\n${assets.map((a) => `• \`${a}\``).join('\n')}`,
+        );
     }
 
     /**
@@ -128,6 +169,7 @@ export class TelegramCommandsService {
         const message = `*Available Commands:*\n\n` +
             `💰 /set_min_size <amount> - Set minimum opportunity size in USD\n` +
             `⏱️ /set_min_duration <seconds> - Set minimum opportunity duration\n` +
+            `🪙 /set_assets <asset> [...] - Set Midgard monitored assets (comma or space separated)\n` +
             `📊 /get_config - Show current configuration\n` +
             `❓ /help - Show this help message`;
         await this.sendMessage(chatId, message);

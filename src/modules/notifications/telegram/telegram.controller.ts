@@ -7,7 +7,6 @@ import { TelegramCommandsService } from './telegram-commands.service';
 import type { TelegramUpdate } from './telegram-commands.service';
 import { MidgardService } from '../../thorchain/services/midgard.service';
 import { MidgardAction, MidgardActionStatus, StreamSwapOpportunity } from '../../thorchain/interfaces/thorchain.interface';
-import { TradeDirection } from '../../thorchain/interfaces/trade.interface';
 
 interface SetTelegramConfigDto {
     botToken: string;
@@ -125,7 +124,6 @@ export class TelegramController {
      */
     @Post('test/opportunity')
     async testOpportunityNotification(
-        @Query('direction') direction: 'long' | 'short' = 'long',
         @Res() res: Response,
     ) {
         try {
@@ -141,8 +139,8 @@ export class TelegramController {
             const mockOpportunity: StreamSwapOpportunity = {
                 txHash: 'TEST' + Date.now().toString(16).toUpperCase(),
                 timestamp: new Date(),
-                inputAsset: direction === 'short' ? 'THOR.RUJI' : 'THOR.TCY',
-                outputAsset: direction === 'short' ? 'THOR.TCY' : 'THOR.RUJI',
+                inputAsset: 'THOR.RUJI',
+                outputAsset: 'THOR.TCY',
                 inputAmount: '1000000000000', // 10000 in base units
                 outputAmount: '500000000000', // 5000 in base units
                 streamingConfig: {
@@ -158,7 +156,6 @@ export class TelegramController {
                 pools: ['THOR.RUJI', 'THOR.TCY'],
                 height: '12345678',
                 $size: 5000.50,
-                tradeDirection: direction === 'short' ? TradeDirection.short : TradeDirection.long,
                 status: 'pending',
                 address: 'thor1test1234567890abcdefghijklmnopqrstuvwxyz',
             };
@@ -175,7 +172,6 @@ export class TelegramController {
                     message: 'Test opportunity notification sent successfully',
                     opportunity: {
                         txHash: mockOpportunity.txHash,
-                        direction: mockOpportunity.tradeDirection,
                         size: mockOpportunity.$size,
                     },
                 });

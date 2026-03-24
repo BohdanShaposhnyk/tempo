@@ -5,7 +5,6 @@ import { of } from 'rxjs';
 import { AxiosError } from 'axios';
 import { TelegramConfigService } from './telegram-config.service';
 import { StreamSwapOpportunity } from '../../thorchain/interfaces/thorchain.interface';
-import { TradeDirection } from '../../thorchain/interfaces/trade.interface';
 import { formatAmount } from 'src/common/utils/format.utils';
 
 @Injectable()
@@ -59,10 +58,9 @@ export class TelegramService {
         address: string,
         isTest = false
     ): string {
-        const { tradeDirection, $size, inputAsset, outputAsset, inputAmount, txHash, prices } = opportunity;
+        const { $size, inputAsset, outputAsset, inputAmount, txHash, prices } = opportunity;
 
-        const emoji = tradeDirection === TradeDirection.long ? '🟢' : '🔴';
-        const directionText = tradeDirection === TradeDirection.long ? '*RUJI* bought!' : '*RUJI* dumped!';
+   
 
         const formattedInputAmount = formatAmount(inputAmount).toFixed(2);
         const outputAmount = `≈ ${Number($size / (prices?.out ?? 1)).toFixed(0)}`;
@@ -77,7 +75,7 @@ export class TelegramService {
         const testPrefix = isTest ? '🧪 *TEST NOTIFICATION*\n\n' : '';
 
         return (
-            `${testPrefix}${emoji} *$${formattedSize}* ${directionText}\n\n` +
+            `${testPrefix} *$${formattedSize}*\n\n` +
             `    ${formattedInputAmount} *${escInputAsset}* → ${outputAmount} *${escOutputAsset}*\n\n` +
             `    ${txLink} · ${addressLink}`
         );
