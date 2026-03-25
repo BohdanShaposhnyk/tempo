@@ -29,57 +29,67 @@ export class MidgardService {
     /**
      * Fetch recent actions from Midgard filtered by asset
      */
-    async getRecentActions(limit: number = 10, fromHeight?: number): Promise<MidgardAction[]> {
+    async getRecentActions(limit: number = 10): Promise<MidgardAction[]> {
         try {
             const assets = this.tradeConfigService.getMonitoredAssets();
-            const assetParam = assets.join(',');
+            const uniqTxActions = new Map<string, MidgardAction>();
 
-            const response$ = this.httpService
-                .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
-                    params: {
-                        limit: limit.toString(),
-                        type: 'swap', // Only get swap actions
-                        asset: assetParam,
-                        // Midgard supports `fromHeight` (newer-than), used to avoid re-fetching identical pages.
-                        ...(fromHeight !== undefined
-                            ? { fromHeight: fromHeight.toString() }
-                            : {}),
-                    },
-                    // Defensive: if any proxy/CDN caches responses, ask for a revalidation.
-                    headers: {
-                        'Cache-Control': 'no-cache',
-                        Pragma: 'no-cache',
-                    },
-                })
-                .pipe(
-                    timeout(THORCHAIN_CONSTANTS.API_TIMEOUT_MS),
-                    catchError((error: AxiosError) => {
-                        this.logger.error(
-                            `Failed to fetch recent actions: ${error.message}`,
+            const responses = await Promise.all(
+                assets.map(async (asset) => {
+                    const response$ = this.httpService
+                        .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
+                            params: {
+                                limit: limit.toString(),
+                                type: 'swap', // Only get swap actions
+                                asset: asset,
+                            },
+                        })
+                        .pipe(
+                            timeout(THORCHAIN_CONSTANTS.API_TIMEOUT_MS),
+                            catchError((error: AxiosError) => {
+                                this.logger.error(
+                                    `Failed to fetch recent actions for asset ${asset}: ${error.message}`,
+                                );
+                                throw error;
+                            }),
                         );
-                        throw error;
-                    }),
-                );
 
-            const response = await firstValueFrom(response$);
-            const actions = response.data.actions || [];
+                    return firstValueFrom(response$);
+                }),
+            );
 
-            if (actions.length > 0) {
-                const heights = actions
+            for (const response of responses) {
+                const actions = response.data.actions || [];
+                for (const action of actions) {
+                    const txId = action.in?.[0]?.txID;
+                    // Poller will ignore actions without txId, but we avoid polluting the merged set.
+                    if (!txId) continue;
+                    if (!uniqTxActions.has(txId)) {
+                        uniqTxActions.set(txId, action);
+                    }
+                }
+            }
+
+            const mergedActions = Array.from(uniqTxActions.values());
+
+            if (mergedActions.length > 0) {
+                const heights = mergedActions
                     .map((a) => parseInt(a.height))
                     .filter((h) => !isNaN(h));
                 const minHeight = Math.min(...heights);
                 const maxHeight = Math.max(...heights);
                 this.logger.log(
-                    `[MidgardService] getRecentActions returned ${actions.length} actions heights=${minHeight}..${maxHeight} fromHeight=${fromHeight ?? 'n/a'}`,
+                    `[MidgardService] getRecentActions returned ${mergedActions.length} unique actions heights=${minHeight}..${maxHeight} assets=${assets.join(
+                        ',',
+                    )}`,
                 );
             } else {
                 this.logger.log(
-                    `[MidgardService] getRecentActions returned 0 actions assetParam=${assetParam}`,
+                    `[MidgardService] getRecentActions returned 0 actions assets=${assets.join(',')}`,
                 );
             }
 
-            return actions;
+            return mergedActions;
         } catch (error) {
             this.logger.error(
                 `Error in getRecentActions: ${error.message}`,
