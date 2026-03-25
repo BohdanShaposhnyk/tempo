@@ -10,23 +10,22 @@ import { DetectorService } from './services/detector.service';
 import { ThorchainHealthIndicator } from './services/thorchain.health';
 
 @Module({
-    imports: [
-        HttpModule.register({
-            timeout: 10000,
-            maxRedirects: 5,
-        }),
-        NestConfigModule,
-        ConfigModule,
-        EventEmitterModule,
-    ],
-    providers: [
-        PollerService,
-        MidgardService,
-        ThornodeService,
-        DetectorService,
-        ThorchainHealthIndicator,
-    ],
-    exports: [ThorchainHealthIndicator, MidgardService],
+  imports: [
+    HttpModule.register({
+      timeout: 10000,
+      maxRedirects: 5,
+    }),
+    NestConfigModule,
+    ConfigModule,
+    EventEmitterModule,
+  ],
+  providers: [
+    PollerService,
+    MidgardService,
+    ThornodeService,
+    DetectorService,
+    ThorchainHealthIndicator,
+  ],
+  exports: [ThorchainHealthIndicator, MidgardService],
 })
-export class ThorchainModule { }
-
+export class ThorchainModule {}

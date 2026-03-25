@@ -5,17 +5,15 @@ import { TradeConfigService } from './trade-config.service';
 import { ConfigController } from './config.controller';
 
 @Module({
-    imports: [
-        NestConfigModule,
-        HttpModule.register({
-            timeout: 10000,
-            maxRedirects: 5,
-        }),
-    ],
-    providers: [
-        TradeConfigService,
-    ],
-    controllers: [ConfigController],
-    exports: [TradeConfigService],
+  imports: [
+    NestConfigModule,
+    HttpModule.register({
+      timeout: 10000,
+      maxRedirects: 5,
+    }),
+  ],
+  providers: [TradeConfigService],
+  controllers: [ConfigController],
+  exports: [TradeConfigService],
 })
-export class ConfigModule { }
+export class ConfigModule {}

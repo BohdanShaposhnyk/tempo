@@ -8,4 +8,3 @@ export const THORCHAIN_CONSTANTS = {
   API_TIMEOUT_MS: 10000,
   API_MAX_RETRIES: 3,
 } as const;
-

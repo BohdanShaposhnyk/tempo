@@ -12,25 +12,24 @@ import { NotificationListenerService } from './notification-listener.service';
 import { WebSocketNotificationGateway } from './ws/websocket-notification.gateway';
 
 @Module({
-    imports: [
-        HttpModule.register({
-            timeout: 10000,
-            maxRedirects: 5,
-        }),
-        NestConfigModule,
-        ConfigModule,
-        EventEmitterModule,
-        ThorchainModule,
-    ],
-    providers: [
-        TelegramConfigService,
-        TelegramService,
-        TelegramCommandsService,
-        NotificationListenerService,
-        WebSocketNotificationGateway,
-    ],
-    controllers: [TelegramController],
-    exports: [TelegramService, WebSocketNotificationGateway],
+  imports: [
+    HttpModule.register({
+      timeout: 10000,
+      maxRedirects: 5,
+    }),
+    NestConfigModule,
+    ConfigModule,
+    EventEmitterModule,
+    ThorchainModule,
+  ],
+  providers: [
+    TelegramConfigService,
+    TelegramService,
+    TelegramCommandsService,
+    NotificationListenerService,
+    WebSocketNotificationGateway,
+  ],
+  controllers: [TelegramController],
+  exports: [TelegramService, WebSocketNotificationGateway],
 })
-export class NotificationsModule { }
-
+export class NotificationsModule {}
