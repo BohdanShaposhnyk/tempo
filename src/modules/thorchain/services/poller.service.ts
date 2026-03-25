@@ -69,12 +69,28 @@ export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
             // 20 actions should cover extended periods reliably
             const actions = await this.midgardService.getRecentActions(20);
 
-            if (!actions || actions.length === 0) {
+            const actionsList = actions ?? [];
+            if (actionsList.length === 0) {
+                this.logger.log(
+                    `[PollerService] poll actions=0 (asset filter matched nothing) lastProcessedHeight=${this.lastProcessedHeight}`,
+                );
                 return;
             }
 
+            const heights = actionsList
+                .map((a) => parseInt(a.height))
+                .filter((h) => !isNaN(h));
+            const minHeight = heights.length > 0 ? Math.min(...heights) : NaN;
+            const maxHeight = heights.length > 0 ? Math.max(...heights) : NaN;
+            const heightRange =
+                !isNaN(minHeight) && !isNaN(maxHeight)
+                    ? `${minHeight}..${maxHeight}`
+                    : 'n/a';
+
+            let skippedMissingTxId = 0;
+
             // Process actions in order (oldest first)
-            const sortedActions = actions.sort((a, b) => {
+            const sortedActions = actionsList.sort((a, b) => {
                 const heightA = parseInt(a.height);
                 const heightB = parseInt(b.height);
                 return heightA - heightB;
@@ -88,6 +104,7 @@ export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
 
                 // Skip if no txID (shouldn't happen but be safe)
                 if (!txId) {
+                    skippedMissingTxId++;
                     this.logger.warn(`Action at height ${height} has no txID, skipping`);
                     continue;
                 }
@@ -121,6 +138,11 @@ export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
 
             // Update last processed height for health monitoring
             this.lastProcessedHeight = maxHeightSeen;
+
+            // Per-poll summary log (kept low cardinality)
+            this.logger.log(
+                `[PollerService] poll actions=${actionsList.length} heights=${heightRange} skippedMissingTxId=${skippedMissingTxId} lastProcessedHeight=${this.lastProcessedHeight}`,
+            );
 
             // Prevent memory bloat: keep only the most recent txIDs
             if (this.processedTxIds.size > this.maxProcessedTxIds) {

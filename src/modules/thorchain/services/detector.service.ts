@@ -11,6 +11,8 @@ import { formatAmount, getStreamSwapSizeInUSD, calculateSizeFromThornodeTx } fro
 @Injectable()
 export class DetectorService implements OnApplicationBootstrap {
     private readonly logger = new Logger(DetectorService.name);
+    private debugActionSeenCount = 0;
+    private readonly debugActionSeenLimit = 20;
 
     constructor(
         private readonly midgardService: MidgardService,
@@ -45,9 +47,15 @@ export class DetectorService implements OnApplicationBootstrap {
             const action = event.action;
 
             // Check if this is a stream swap (actions already Midgard-filtered by asset)
-            if (
-                this.midgardService.isStreamSwap(action)
-            ) {
+            const isStreamSwap = this.midgardService.isStreamSwap(action);
+            if (this.debugActionSeenCount < this.debugActionSeenLimit) {
+                this.logger.log(
+                    `[DetectorService] action.detected height=${event.height} type=${action.type} isStreamSwap=${isStreamSwap} pools=${action.pools?.join(',') ?? ''}`,
+                );
+                this.debugActionSeenCount++;
+            }
+
+            if (isStreamSwap) {
                 // Extract transaction ID from inbound transaction
                 const txHash = action.in?.[0]?.txID || 'unknown';
                 await this.handleStreamSwap(txHash, action, event.height);

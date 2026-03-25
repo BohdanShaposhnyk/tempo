@@ -30,9 +30,14 @@ export class MidgardService {
      * Fetch recent actions from Midgard filtered by asset
      */
     async getRecentActions(limit: number = 10): Promise<MidgardAction[]> {
+        let assetParam = '';
         try {
             const assets = this.tradeConfigService.getMonitoredAssets();
-            const assetParam = assets.join(',');
+            assetParam = assets.join(',');
+
+            this.logger.log(
+                `[MidgardService] getRecentActions baseUrl=${this.baseUrl} limit=${limit} type=swap assetParam=${assetParam}`,
+            );
 
             const response$ = this.httpService
                 .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
@@ -53,9 +58,28 @@ export class MidgardService {
                 );
 
             const response = await firstValueFrom(response$);
-            return response.data.actions || [];
+            const actions = response.data.actions || [];
+
+            if (actions.length > 0) {
+                const heights = actions
+                    .map((a) => parseInt(a.height))
+                    .filter((h) => !isNaN(h));
+                const minHeight = Math.min(...heights);
+                const maxHeight = Math.max(...heights);
+                this.logger.log(
+                    `[MidgardService] getRecentActions returned ${actions.length} actions heights=${minHeight}..${maxHeight}`,
+                );
+            } else {
+                this.logger.log(
+                    `[MidgardService] getRecentActions returned 0 actions assetParam=${assetParam}`,
+                );
+            }
+
+            return actions;
         } catch (error) {
-            this.logger.error(`Error in getRecentActions: ${error.message}`);
+            this.logger.error(
+                `Error in getRecentActions baseUrl=${this.baseUrl} assetParam=${assetParam}: ${error.message}`,
+            );
             return [];
         }
     }
