@@ -67,7 +67,13 @@ export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
             // Get recent swap actions from Midgard (filtered by configured assets)
             // Since we're filtering by asset at API level, we need fewer results
             // 20 actions should cover extended periods reliably
-            const actions = await this.midgardService.getRecentActions(20);
+            // Fetch only actions newer than (last seen height - 1). Subtracting 1 helps
+            // in case Midgard/its indexer delivers late data for the most recently seen height.
+            const fromHeight =
+                this.lastProcessedHeight > 0
+                    ? this.lastProcessedHeight - 1
+                    : undefined;
+            const actions = await this.midgardService.getRecentActions(20, fromHeight);
 
             const actionsList = actions ?? [];
             if (actionsList.length === 0) {

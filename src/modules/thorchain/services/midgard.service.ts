@@ -29,15 +29,10 @@ export class MidgardService {
     /**
      * Fetch recent actions from Midgard filtered by asset
      */
-    async getRecentActions(limit: number = 10): Promise<MidgardAction[]> {
-        let assetParam = '';
+    async getRecentActions(limit: number = 10, fromHeight?: number): Promise<MidgardAction[]> {
         try {
             const assets = this.tradeConfigService.getMonitoredAssets();
-            assetParam = assets.join(',');
-
-            this.logger.log(
-                `[MidgardService] getRecentActions baseUrl=${this.baseUrl} limit=${limit} type=swap assetParam=${assetParam}`,
-            );
+            const assetParam = assets.join(',');
 
             const response$ = this.httpService
                 .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
@@ -45,6 +40,15 @@ export class MidgardService {
                         limit: limit.toString(),
                         type: 'swap', // Only get swap actions
                         asset: assetParam,
+                        // Midgard supports `fromHeight` (newer-than), used to avoid re-fetching identical pages.
+                        ...(fromHeight !== undefined
+                            ? { fromHeight: fromHeight.toString() }
+                            : {}),
+                    },
+                    // Defensive: if any proxy/CDN caches responses, ask for a revalidation.
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        Pragma: 'no-cache',
                     },
                 })
                 .pipe(
@@ -67,7 +71,7 @@ export class MidgardService {
                 const minHeight = Math.min(...heights);
                 const maxHeight = Math.max(...heights);
                 this.logger.log(
-                    `[MidgardService] getRecentActions returned ${actions.length} actions heights=${minHeight}..${maxHeight}`,
+                    `[MidgardService] getRecentActions returned ${actions.length} actions heights=${minHeight}..${maxHeight} fromHeight=${fromHeight ?? 'n/a'}`,
                 );
             } else {
                 this.logger.log(
@@ -78,7 +82,7 @@ export class MidgardService {
             return actions;
         } catch (error) {
             this.logger.error(
-                `Error in getRecentActions baseUrl=${this.baseUrl} assetParam=${assetParam}: ${error.message}`,
+                `Error in getRecentActions: ${error.message}`,
             );
             return [];
         }
