@@ -64,6 +64,9 @@ export class TelegramCommandsService {
         case '/set_assets':
           await this.handleSetAssets(chatId, args);
           break;
+        case '/set_midgard_delay':
+          await this.handleSetMidgardDelay(chatId, args);
+          break;
         case '/help':
           await this.handleHelp(chatId);
           break;
@@ -154,6 +157,7 @@ export class TelegramCommandsService {
       `*Current Configuration:*\n\n` +
       `💰 Min Size: *$${config.minSize}*\n` +
       `⏱️ Min Duration: *${config.minDuration}s*\n` +
+      `⏳ Midgard inter-asset delay: *${config.midgardInterAssetDelayMs}ms*\n` +
       `🪙 Monitored assets:\n${assetsLine}`;
     await this.sendMessage(chatId, message);
   }
@@ -193,6 +197,37 @@ export class TelegramCommandsService {
   }
 
   /**
+   * Handle /set_midgard_delay command
+   */
+  private async handleSetMidgardDelay(
+    chatId: string,
+    args: string[],
+  ): Promise<void> {
+    if (args.length === 0) {
+      await this.sendMessage(
+        chatId,
+        'Usage: /set_midgard_delay <milliseconds>\nExample: /set_midgard_delay 500',
+      );
+      return;
+    }
+
+    const ms = parseFloat(args[0]);
+    if (isNaN(ms) || !isFinite(ms) || ms < 0) {
+      await this.sendMessage(
+        chatId,
+        '❌ Invalid value. Please provide a non-negative number of milliseconds.',
+      );
+      return;
+    }
+
+    this.tradeConfigService.setMidgardInterAssetDelayMs(ms);
+    await this.sendMessage(
+      chatId,
+      `✅ Midgard inter-asset delay set to *${ms}ms*`,
+    );
+  }
+
+  /**
    * Handle /help command
    */
   private async handleHelp(chatId: string): Promise<void> {
@@ -200,6 +235,7 @@ export class TelegramCommandsService {
       `*Available Commands:*\n\n` +
       `💰 /set_min_size <amount> - Set minimum opportunity size in USD\n` +
       `⏱️ /set_min_duration <seconds> - Set minimum opportunity duration\n` +
+      `⏳ /set_midgard_delay <ms> - Delay between per-asset Midgard polling calls (reduces 429s)\n` +
       `🪙 /set_assets <asset> [...] - Set Midgard monitored assets (comma or space separated)\n` +
       `📊 /get_config - Show current configuration\n` +
       `❓ /help - Show this help message`;

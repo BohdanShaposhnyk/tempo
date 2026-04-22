@@ -16,11 +16,23 @@ interface SetTradeConfigDto {
   minDuration?: number;
   /** Midgard `asset` filter (OR); non-empty strings */
   assets?: string[];
+  /** Milliseconds between consecutive per-asset Midgard `/v2/actions` calls */
+  midgardInterAssetDelayMs?: number;
 }
 
 @Controller('config')
 export class ConfigController {
   constructor(private readonly tradeConfigService: TradeConfigService) {}
+
+  /**
+   * Trade / Telegram admin UI
+   */
+  @Get()
+  getAdminUI(@Res() res: Response) {
+    return res.sendFile('telegram-admin.html', {
+      root: 'src/modules/notifications/telegram/public',
+    });
+  }
 
   /**
    * Get trade configuration
@@ -55,6 +67,11 @@ export class ConfigController {
       }
       if (dto.assets !== undefined) {
         this.tradeConfigService.setMonitoredAssets(dto.assets);
+      }
+      if (dto.midgardInterAssetDelayMs !== undefined) {
+        this.tradeConfigService.setMidgardInterAssetDelayMs(
+          dto.midgardInterAssetDelayMs,
+        );
       }
 
       const config = this.tradeConfigService.getConfig();
@@ -121,6 +138,36 @@ export class ConfigController {
       return res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: `Failed to set min duration: ${getErrorMessage(error)}`,
+      });
+    }
+  }
+
+  /**
+   * Set delay (ms) between Midgard `/v2/actions` calls for each monitored asset
+   */
+  @Put('trade/midgard-inter-asset-delay')
+  setMidgardInterAssetDelay(
+    @Body() body: { value: number },
+    @Res() res: Response,
+  ) {
+    try {
+      if (body.value === undefined || body.value === null) {
+        return res.status(HttpStatus.BAD_REQUEST).json({
+          success: false,
+          message: 'Value is required',
+        });
+      }
+
+      this.tradeConfigService.setMidgardInterAssetDelayMs(body.value);
+      return res.status(HttpStatus.OK).json({
+        success: true,
+        message: `Midgard inter-asset delay set to ${body.value}ms`,
+        config: this.tradeConfigService.getConfig(),
+      });
+    } catch (error: unknown) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        message: `Failed to set Midgard inter-asset delay: ${getErrorMessage(error)}`,
       });
     }
   }

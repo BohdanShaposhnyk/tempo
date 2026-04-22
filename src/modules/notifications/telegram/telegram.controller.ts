@@ -294,14 +294,4 @@ export class TelegramController {
       });
     }
   }
-
-  /**
-   * Serve admin UI
-   */
-  @Get('admin')
-  getAdminUI(@Res() res: Response) {
-    return res.sendFile('telegram-admin.html', {
-      root: 'src/modules/notifications/telegram/public',
-    });
-  }
 }

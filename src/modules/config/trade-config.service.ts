@@ -5,6 +5,7 @@ export type TradeConfigSnapshot = {
   minSize: number;
   minDuration: number;
   assets: string[];
+  midgardInterAssetDelayMs: number;
 };
 
 @Injectable()
@@ -17,6 +18,8 @@ export class TradeConfigService {
   private monitoredAssets: string[] = [
     ...TRADE_CONFIG_CONSTANTS.DEFAULT_MONITORED_ASSETS,
   ];
+  private midgardInterAssetDelayMs: number =
+    TRADE_CONFIG_CONSTANTS.DEFAULT_MIDGARD_INTER_ASSET_DELAY_MS;
 
   /**
    * Get minimum opportunity size in USD
@@ -37,6 +40,13 @@ export class TradeConfigService {
    */
   getMonitoredAssets(): string[] {
     return [...this.monitoredAssets];
+  }
+
+  /**
+   * Milliseconds to wait between consecutive Midgard `/v2/actions` calls (one per monitored asset)
+   */
+  getMidgardInterAssetDelayMs(): number {
+    return this.midgardInterAssetDelayMs;
   }
 
   /**
@@ -73,6 +83,14 @@ export class TradeConfigService {
     this.logger.log(`Monitored assets updated to: ${normalized.join(', ')}`);
   }
 
+  setMidgardInterAssetDelayMs(value: number): void {
+    if (!isFinite(value) || value < 0) {
+      throw new Error('Midgard inter-asset delay must be a non-negative finite number');
+    }
+    this.midgardInterAssetDelayMs = value;
+    this.logger.log(`Midgard inter-asset delay updated to ${value}ms`);
+  }
+
   private normalizeAssetList(assets: string[]): string[] {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -98,17 +116,26 @@ export class TradeConfigService {
       minSize: this.minOpportunitySize$,
       minDuration: this.minOpportunityDurationS,
       assets: this.getMonitoredAssets(),
+      midgardInterAssetDelayMs: this.midgardInterAssetDelayMs,
     };
   }
 
   /**
    * Set configuration
    */
-  setConfig(minSize: number, minDuration: number, assets?: string[]): void {
+  setConfig(
+    minSize: number,
+    minDuration: number,
+    assets?: string[],
+    midgardInterAssetDelayMs?: number,
+  ): void {
     this.setMinOpportunitySize$(minSize);
     this.setMinOpportunityDurationS(minDuration);
     if (assets !== undefined) {
       this.setMonitoredAssets(assets);
+    }
+    if (midgardInterAssetDelayMs !== undefined) {
+      this.setMidgardInterAssetDelayMs(midgardInterAssetDelayMs);
     }
   }
 }

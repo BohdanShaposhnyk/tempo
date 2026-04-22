@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom, catchError, timeout } from 'rxjs';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosResponse } from 'axios';
 import {
   MidgardActionsResponse,
   MidgardPoolResponse,
@@ -34,30 +34,16 @@ export class MidgardService {
     try {
       const assets = this.tradeConfigService.getMonitoredAssets();
       const uniqTxActions = new Map<string, MidgardAction>();
+      const delayMs = this.tradeConfigService.getMidgardInterAssetDelayMs();
+      const responses: AxiosResponse<MidgardActionsResponse>[] = [];
 
-      const responses = await Promise.all(
-        assets.map(async (asset) => {
-          const response$ = this.httpService
-            .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
-              params: {
-                limit: limit.toString(),
-                type: 'swap', // Only get swap actions
-                asset: asset,
-              },
-            })
-            .pipe(
-              timeout(THORCHAIN_CONSTANTS.API_TIMEOUT_MS),
-              catchError((error: AxiosError) => {
-                this.logger.error(
-                  `Failed to fetch recent actions for asset ${asset}: ${error.message}`,
-                );
-                throw error;
-              }),
-            );
-
-          return firstValueFrom(response$);
-        }),
-      );
+      for (let i = 0; i < assets.length; i++) {
+        if (i > 0 && delayMs > 0) {
+          await sleepMs(delayMs);
+        }
+        const response = await this.fetchSwapActionsForAsset(assets[i], limit);
+        responses.push(response);
+      }
 
       for (const response of responses) {
         const actions = response.data.actions || [];
@@ -184,4 +170,32 @@ export class MidgardService {
       out: parseFloat(action.metadata?.swap?.outPriceUSD ?? '0'),
     };
   }
+
+  private async fetchSwapActionsForAsset(
+    asset: string,
+    limit: number,
+  ): Promise<AxiosResponse<MidgardActionsResponse>> {
+    const response$ = this.httpService
+      .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
+        params: {
+          limit: limit.toString(),
+          type: 'swap',
+          asset,
+        },
+      })
+      .pipe(
+        timeout(THORCHAIN_CONSTANTS.API_TIMEOUT_MS),
+        catchError((error: AxiosError) => {
+          this.logger.error(
+            `Failed to fetch recent actions for asset ${asset}: ${error.message}`,
+          );
+          throw error;
+        }),
+      );
+    return firstValueFrom(response$);
+  }
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
