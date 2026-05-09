@@ -16,7 +16,7 @@ interface SetTradeConfigDto {
   minDuration?: number;
   /** Midgard `asset` filter (OR); non-empty strings */
   assets?: string[];
-  /** Milliseconds between consecutive per-asset Midgard `/v2/actions` calls */
+  /** Legacy; unused when indexer batches assets in one request */
   midgardInterAssetDelayMs?: number;
 }
 

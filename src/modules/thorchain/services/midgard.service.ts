@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom, catchError, timeout } from 'rxjs';
-import { AxiosError, AxiosResponse } from 'axios';
+import { AxiosError } from 'axios';
 import {
   MidgardActionsResponse,
   MidgardPoolResponse,
@@ -15,51 +15,46 @@ import { getErrorMessage } from 'src/common/utils/error-message.utils';
 @Injectable()
 export class MidgardService {
   private readonly logger = new Logger(MidgardService.name);
-  private readonly baseUrl: string;
+  /** Indexer (actions, tx by id) — Vanaheimex `/actions` */
+  private readonly indexerBaseUrl: string;
+  /** Pool metadata `/v2/pool/...` — optional legacy Midgard host */
+  private readonly poolBaseUrl: string;
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly tradeConfigService: TradeConfigService,
   ) {
-    this.baseUrl =
+    this.indexerBaseUrl =
       this.configService.get<string>('MIDGARD_API_URL') ||
       THORCHAIN_CONSTANTS.MIDGARD_API;
+    this.poolBaseUrl =
+      this.configService.get<string>('MIDGARD_POOL_API_URL') ||
+      THORCHAIN_CONSTANTS.MIDGARD_POOL_API;
   }
 
   /**
-   * Fetch recent actions from Midgard filtered by asset
+   * Fetch recent swap actions for all monitored assets (single indexer request).
    */
   async getRecentActions(limit: number = 10): Promise<MidgardAction[]> {
     try {
       const assets = this.tradeConfigService.getMonitoredAssets();
+      if (assets.length === 0) {
+        return [];
+      }
+
+      const response = await this.fetchSwapActionsForAssets(assets, limit);
       const uniqTxActions = new Map<string, MidgardAction>();
-      const delayMs = this.tradeConfigService.getMidgardInterAssetDelayMs();
-      const responses: AxiosResponse<MidgardActionsResponse>[] = [];
 
-      for (let i = 0; i < assets.length; i++) {
-        if (i > 0 && delayMs > 0) {
-          await sleepMs(delayMs);
-        }
-        const response = await this.fetchSwapActionsForAsset(assets[i], limit);
-        responses.push(response);
-      }
-
-      for (const response of responses) {
-        const actions = response.data.actions || [];
-        for (const action of actions) {
-          const txId = action.in?.[0]?.txID;
-          // Poller will ignore actions without txId, but we avoid polluting the merged set.
-          if (!txId) continue;
-          if (!uniqTxActions.has(txId)) {
-            uniqTxActions.set(txId, action);
-          }
+      for (const action of response.data.actions || []) {
+        const txId = action.in?.[0]?.txID;
+        if (!txId) continue;
+        if (!uniqTxActions.has(txId)) {
+          uniqTxActions.set(txId, action);
         }
       }
 
-      const mergedActions = Array.from(uniqTxActions.values());
-
-      return mergedActions;
+      return Array.from(uniqTxActions.values());
     } catch (error: unknown) {
       this.logger.error(`Error in getRecentActions: ${getErrorMessage(error)}`);
       return [];
@@ -74,7 +69,7 @@ export class MidgardService {
       this.logger.debug(`Fetching actions for txId: ${txId}`);
 
       const response$ = this.httpService
-        .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
+        .get<MidgardActionsResponse>(`${this.indexerBaseUrl}/actions`, {
           params: {
             txid: txId,
           },
@@ -105,7 +100,7 @@ export class MidgardService {
       this.logger.debug(`Fetching pool info for asset: ${asset}`);
 
       const response$ = this.httpService
-        .get<MidgardPoolResponse>(`${this.baseUrl}/v2/pool/${asset}`)
+        .get<MidgardPoolResponse>(`${this.poolBaseUrl}/v2/pool/${asset}`)
         .pipe(
           timeout(THORCHAIN_CONSTANTS.API_TIMEOUT_MS),
           catchError((error: AxiosError) => {
@@ -171,31 +166,28 @@ export class MidgardService {
     };
   }
 
-  private async fetchSwapActionsForAsset(
-    asset: string,
+  private async fetchSwapActionsForAssets(
+    assets: string[],
     limit: number,
-  ): Promise<AxiosResponse<MidgardActionsResponse>> {
+  ) {
+    const assetParam = assets.join(',');
     const response$ = this.httpService
-      .get<MidgardActionsResponse>(`${this.baseUrl}/v2/actions`, {
+      .get<MidgardActionsResponse>(`${this.indexerBaseUrl}/actions`, {
         params: {
           limit: limit.toString(),
           type: 'swap',
-          asset,
+          asset: assetParam,
         },
       })
       .pipe(
         timeout(THORCHAIN_CONSTANTS.API_TIMEOUT_MS),
         catchError((error: AxiosError) => {
           this.logger.error(
-            `Failed to fetch recent actions for asset ${asset}: ${error.message}`,
+            `Failed to fetch recent actions for assets ${assetParam}: ${error.message}`,
           );
           throw error;
         }),
       );
     return firstValueFrom(response$);
   }
-}
-
-function sleepMs(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

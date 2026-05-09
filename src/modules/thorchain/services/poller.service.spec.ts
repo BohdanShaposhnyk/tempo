@@ -151,6 +151,8 @@ describe('PollerService', () => {
     const messages = logSpy.mock.calls
       .map((c) => c[0])
       .filter((v): v is string => typeof v === 'string');
-    expect(messages.some((m) => m.includes('heights=5..10'))).toBe(true);
+    expect(messages.some((m) => m.includes('lastProcessedHeight=10'))).toBe(
+      true,
+    );
   });
 });

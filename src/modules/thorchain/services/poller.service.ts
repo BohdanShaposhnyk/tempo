@@ -138,6 +138,10 @@ export class PollerService implements OnApplicationBootstrap, OnModuleDestroy {
     let maxHeightSeen = this.lastProcessedHeight;
 
     for (const { action, height, txId } of sortedActions) {
+      if (!txId?.trim()) {
+        continue;
+      }
+
       // Skip if we've already processed this transaction
       if (this.processedTxIds.has(txId)) {
         continue;

@@ -65,6 +65,7 @@ export interface MidgardActionsResponse {
   count: string;
   meta?: {
     nextPageToken?: string;
+    prevPageToken?: string;
   };
 }
 

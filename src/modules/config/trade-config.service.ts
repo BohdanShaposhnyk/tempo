@@ -43,7 +43,8 @@ export class TradeConfigService {
   }
 
   /**
-   * Milliseconds to wait between consecutive Midgard `/v2/actions` calls (one per monitored asset)
+   * Legacy setting: previously pauses between per-asset indexer calls.
+   * Recent actions now use one combined `asset=a,b,c` request; this value is unused by `MidgardService.getRecentActions`.
    */
   getMidgardInterAssetDelayMs(): number {
     return this.midgardInterAssetDelayMs;
